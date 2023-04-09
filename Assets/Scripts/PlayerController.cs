@@ -1,6 +1,6 @@
 using UnityEngine;
 
-[RequireComponent(typeof(Rigidbody), typeof(IKGroupHolder))]
+[RequireComponent(typeof(Rigidbody))]
 public class PlayerController : MonoBehaviour
 {
     [SerializeField] private float moveForceMultiplier = 10f;
@@ -20,7 +20,7 @@ public class PlayerController : MonoBehaviour
 
     private Vector3 inputVector;
 
-    private const float HOVER_HEIGHT = 1.5f;
+    private const float HOVER_HEIGHT = 2f;
 
     [System.Serializable]
     public struct ikHolder
@@ -49,6 +49,26 @@ public class PlayerController : MonoBehaviour
         }
         Gizmos.DrawLine(transform.position, transform.position + Quaternion.AngleAxis(aimXRange.x, -transform.right) * transform.forward * DISTANCE);
         Gizmos.DrawLine(transform.position, transform.position + Quaternion.AngleAxis(aimXRange.y, -transform.right) * transform.forward * DISTANCE);
+    }
+
+    [ContextMenu("Fingers length")]
+    private void CalculateFingerLengths()
+    {
+        foreach(ikHolder finger in fingers)
+        {
+            float dist = recursiveLength(finger.root);
+            Debug.Log(finger.root.name + " length: " + dist);
+        }
+    }
+
+    private float recursiveLength(Transform parent)
+    {
+        if (parent.childCount <= 0)
+            return 0f;
+        else
+        {
+            return Vector3.Distance(parent.position, parent.GetChild(0).position) + recursiveLength(parent.GetChild(0));
+        }
     }
 #endif
 
@@ -101,13 +121,17 @@ public class PlayerController : MonoBehaviour
     {
         //Calculate and apply standing torque
         //Palm.up must equal to palmUp vector
-        Vector3 palmUp = Vector3.Cross(transform.up, AverageTargetNormal().normalized) * torqueUpForceMultiplier;
-        //Debug.DrawRay(transform.position, ikGroup.AverageTargetNormal(), Color.yellow);
+        Vector3 localUp = AverageTargetNormal().normalized;
+        Vector3 aimUp = localUp.ClampAngle(cam.up, aimXRange.x, aimXRange.y);
+        Vector3 palmUp = Vector3.Cross(transform.up, aimUp) * torqueUpForceMultiplier;
+        //Debug.DrawRay(transform.position, localUp, Color.yellow);
 
         //Forward facing direction of the palm
         //Limit with angle degree range
-        Vector3 localForward = Vector3.Cross(transform.right, AverageTargetNormal().normalized).normalized;
-        Vector3 lookForward = localForward.ClampAngle(cam.forward, aimXRange.x, aimXRange.y);
+        Vector3 localForward = Vector3.Cross(transform.right, AverageTargetNormal()).normalized;
+        Vector3 camForward = cam.forward;
+        camForward.y = 0f;
+        Vector3 lookForward = localForward.ClampAngle(cam.forward, aimXRange.x, aimXRange.y).normalized;
         //Debug.DrawRay(transform.position, localForward * 3f, Color.black);
         //Debug.DrawRay(transform.position, lookForward * 4f, Color.blue);
 
@@ -139,7 +163,11 @@ public class PlayerController : MonoBehaviour
         //Calculate and apply move force
         Vector3 velocity2D = body.velocity;
         velocity2D.y = 0f;
-        float angle = Vector3.SignedAngle(Vector3.forward, CameraController.instance.transform.forward, Vector3.up);
+
+        Vector3 flatCamForward = cam.forward;
+        flatCamForward.y = 0f;
+        float angle = Vector3.SignedAngle(Vector3.forward, flatCamForward, Vector3.up);
+
         Vector3 moveForce = pidMove.UpdatePID(Time.fixedDeltaTime, velocity2D, Quaternion.AngleAxis(angle, Vector3.up) * inputVector * moveForceMultiplier, pidStoreMove);
         body.AddForce(moveForce);
     }
@@ -170,7 +198,7 @@ public class PlayerController : MonoBehaviour
         //Lets say we have ABC triangle, A is our average position and B is our helper object
         //We will iterate C point for every IK solver and adding to the normal vector
 
-        Vector3 helperPoint = transform.position + Vector3.down * HOVER_HEIGHT;
+        Vector3 helperPoint = transform.position + Vector3.down * 1.5f;
         Vector3 avg = AverageTargetPosition();
 
         Vector3 normal = Vector3.zero;

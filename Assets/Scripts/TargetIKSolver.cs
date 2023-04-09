@@ -16,6 +16,8 @@ public class TargetIKSolver : MonoBehaviour
 
     public Vector3 rayDir { get { return -rayPoint.up; } }
 
+    private const float MOVE_UP_LENGTH = 0.4f;
+
     private void Start()
     {
         CheckPos(true);
@@ -52,7 +54,7 @@ public class TargetIKSolver : MonoBehaviour
 
     private void PlaceTarget(Vector3 worldPos)
     {
-        target.position = Vector3.Lerp(oldPos, worldPos, lerp) + Vector3.up * Mathf.Sin(lerp * Mathf.PI);
+        target.position = Vector3.Lerp(oldPos, worldPos, lerp) + Vector3.up * MOVE_UP_LENGTH * Mathf.Sin(lerp * Mathf.PI);
 
         if(isMoving)
         {

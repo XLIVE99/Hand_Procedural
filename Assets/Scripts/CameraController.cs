@@ -8,17 +8,20 @@ public class CameraController : MonoBehaviour
 {
     [SerializeField] private Transform target;
     [SerializeField] private Vector3 globalOffset, localOffset;
+    [SerializeField] private Transform lookTarget;
+    [SerializeField] private Vector3 lookGlobalOffset, lookLocalOffset;
     [SerializeField] private float distance = 5f;
     [SerializeField] private float sensitivity = 3f;
     [SerializeField] private float smoothTime = 0.3f;
 
-    private Vector3 velocity = Vector3.zero;
+    //private Vector3 velocity = Vector3.zero; //Uncomment when using smoothstep
+    private Vector3 direction;
 
     private Camera cam;
     private float raySphereRadius;
 
-    private const float MIN_X_ANGLE = -85f;
-    private const float MAX_X_ANGLE = 85f;
+    private const float MIN_X_EULER = -75f;
+    private const float MAX_X_EULER = 70f;
 
     public static CameraController instance;
     private void Awake()
@@ -36,14 +39,24 @@ public class CameraController : MonoBehaviour
     private void Start()
     {
         UpdateRaySphereRadius();
+
+        direction = (transform.position - CalculateRawPosition()).normalized;
     }
 
     private void LateUpdate()
     {
-        Vector3 localEuler = transform.localEulerAngles;
+        float inputX = Input.GetAxisRaw("Mouse X") * sensitivity;
+        float inputY = Input.GetAxisRaw("Mouse Y") * sensitivity;
 
-        localEuler.y += -Input.GetAxisRaw("Mouse X") * sensitivity;
-        localEuler.x += Input.GetAxisRaw("Mouse Y") * sensitivity;
+        //Angle limit calculations
+        Vector3 flatYSurface = -transform.forward;
+        flatYSurface.y = 0f;
+        float signedAngle = Vector3.SignedAngle(flatYSurface, direction, transform.right);
+
+        inputY = Mathf.Clamp(signedAngle + inputY, MIN_X_EULER, MAX_X_EULER) - signedAngle;
+
+        //Set direction
+        direction = Quaternion.AngleAxis(inputX, Vector3.up) * Quaternion.AngleAxis(inputY, transform.right) * direction;
 
         //Camera zoom in and out
         distance = Mathf.Clamp(distance - Input.GetAxis("Mouse ScrollWheel") * 5f, 1f, 10f);
@@ -53,28 +66,26 @@ public class CameraController : MonoBehaviour
         transform.position = Vector3.Slerp(transform.position, CheckCollision(CalculatePosition()), Time.deltaTime * smoothTime);
         //transform.position = Vector3.SmoothDamp(transform.position, CheckCollision(CalculatePosition()), ref velocity, smoothTime);
 
-        //Angle limit calculations
-        Vector3 newLocalEuler = localEuler;
-
-        newLocalEuler.z = 0f;
-        if (newLocalEuler.x > 180f)
-            newLocalEuler.x -= 360f;
-
-        newLocalEuler.x = Mathf.Clamp(newLocalEuler.x, MIN_X_ANGLE, MAX_X_ANGLE);
-
-        transform.localEulerAngles = newLocalEuler;
+        //Camera rotation
+        transform.LookAt(CalculateLookPosition());
     }
 
     //Position calculations
     private Vector3 CalculatePosition()
     {
-        return CalculateRawPosition() - transform.forward * distance;
+        return CalculateRawPosition() + direction * distance;
     }
 
-    //Focus point calculations
+    //Target point calculations
     private Vector3 CalculateRawPosition()
     {
         return target.position + globalOffset + transform.TransformVector(localOffset);
+    }
+
+    //Focus point calculations
+    private Vector3 CalculateLookPosition()
+    {
+        return lookTarget.position + lookGlobalOffset + lookTarget.TransformVector(lookLocalOffset);
     }
 
     //Updates ray sphere radius (update the radius if Camera's near clip plane, field of view or aspect is changed)
