@@ -319,19 +319,20 @@ public class PlayerController : MonoBehaviour
         return (transform.position + transform.up * maxReach).y;
     }
 
-    private float LimitHeight(float h)
+    private bool CanMove()
     {
-        float error = 0f;
-        foreach(ikHolder holder in fingers)
+        //If at least one finger is stationary, move the hand
+        bool canMove = false;
+        foreach (ikHolder holder in fingers)
         {
-            float diffMagnitude = (holder.root.position - holder.solver.worldPlacePoint).magnitude;
-            if (diffMagnitude > holder.extentMax && error < diffMagnitude - holder.extentMax)
+            if (!holder.solver.isMoving)
             {
-                error = diffMagnitude - holder.extentMax;
+                canMove = true;
+                break;
             }
         }
 
-        return h - error;
+        return canMove;
     }
 
     /// <summary>

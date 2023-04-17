@@ -13,8 +13,10 @@ public class TargetIKSolver : MonoBehaviour
     public Vector3 worldPlacePoint { get; private set; }
     private float lerp;
     public bool isMoving { get; private set; } = false;
+    public bool onGround { get; private set; } = false;
 
     public Vector3 rayDir { get { return -rayPoint.up; } }
+    public Vector3 hitNormal { get; private set; }
 
     private const float MOVE_UP_LENGTH = 0.4f;
 
@@ -36,8 +38,11 @@ public class TargetIKSolver : MonoBehaviour
 
     private void CheckPos(bool force = false)
     {
-        if(Physics.SphereCast(rayPoint.position, rayRadius, -rayPoint.up, out RaycastHit hitInfo, rayLength, LayerMask.GetMask("Terrain")))
+        RaycastHit hitInfo;
+        if(Physics.SphereCast(rayPoint.position, rayRadius, -rayPoint.up, out hitInfo, rayLength, LayerMask.GetMask("Terrain")))
         {
+            onGround = true;
+            hitNormal = hitInfo.normal;
             if(force || Vector3.Distance(worldPlacePoint, hitInfo.point) >= moveDistance)
             {
                 oldPos = worldPlacePoint;
@@ -50,11 +55,23 @@ public class TargetIKSolver : MonoBehaviour
                 worldPlacePoint = hitInfo.point;
             }
         }
+        else if(onGround)
+        {
+            oldPos = worldPlacePoint;
+            worldPlacePoint = rayPoint.position - rayPoint.up * rayLength * 0.7f;
+            isMoving = true;
+            onGround = false;
+            lerp = 0;
+        }
+        else
+        {
+            worldPlacePoint = rayPoint.position - rayPoint.up * rayLength * 0.7f;
+        }
     }
 
     private void PlaceTarget(Vector3 worldPos)
     {
-        target.position = Vector3.Lerp(oldPos, worldPos, lerp) + Vector3.up * MOVE_UP_LENGTH * Mathf.Sin(lerp * Mathf.PI);
+        target.position = Vector3.Lerp(oldPos, worldPos, lerp) + hitNormal * MOVE_UP_LENGTH * Mathf.Sin(lerp * Mathf.PI);
 
         if(isMoving)
         {
