@@ -13,6 +13,7 @@ public class CameraController : MonoBehaviour
     [SerializeField] private float distance = 5f;
     [SerializeField] private float sensitivity = 3f;
     [SerializeField] private float smoothTime = 0.3f;
+    [SerializeField] private LayerMask checkLayers;
 
     //private Vector3 velocity = Vector3.zero; //Uncomment when using smoothstep
     private Vector3 direction;
@@ -108,7 +109,7 @@ public class CameraController : MonoBehaviour
         Vector3 direction = restPos - rawPos;
         RaycastHit hitInfo;
 
-        if (Physics.SphereCast(rawPos, raySphereRadius, direction, out hitInfo, distance))
+        if (Physics.SphereCast(rawPos, raySphereRadius, direction, out hitInfo, distance, checkLayers))
         {
             restPos = rawPos + direction.normalized * hitInfo.distance;
         }

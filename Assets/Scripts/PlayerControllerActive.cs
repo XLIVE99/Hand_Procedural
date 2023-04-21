@@ -6,8 +6,15 @@ public class PlayerControllerActive : MonoBehaviour
 {
     //Force multipliers
     [SerializeField] private float moveForceMultiplier = 10f;
-    [SerializeField] private float hoverForceMultiplier = 10f;
+    //[SerializeField] private float hoverForceMultiplier = 10f; //Hover is done in SyncMovement
     [SerializeField] private float torqueForwardForceMultiplier = 10f, torqueUpForceMultiplier = 4f;
+    [SerializeField] private float jumpForceMultiplier = 60f;
+
+    //Lerp multipliers
+    [SerializeField, Space(10)] private float moveXZLerp = 3f;
+    [SerializeField] private float moveYLerp = 10f;
+    [SerializeField] private float airLerp = 10f;
+    [SerializeField, Tooltip("Rotate degree per second")] private float rotateSpeed = 180f;
 
     //Aim range (low, high)
     [SerializeField] private Vector2 aimXRange;
@@ -16,7 +23,7 @@ public class PlayerControllerActive : MonoBehaviour
     [SerializeField] private IKHolder[] fingers;
 
     //PIDs
-    [SerializeField] private PIDController pidMove, pidTorque, pidHover;
+    [SerializeField] private PIDController pidMove, pidTorque;
 
     //Passive body
     [SerializeField] private Transform bodyPassive;
@@ -28,14 +35,26 @@ public class PlayerControllerActive : MonoBehaviour
     //PID values
     private PIDStore<Vector3> pidStoreMove;
     private PIDStore<Vector3> pidStoreTorque;
-    private PIDStore<float> pidStoreHover;
 
     //Input value converted to Vector3
     private Vector3 inputVector;
 
     //The passive body default position (to clamp distance from the active body)
     private Vector3 passivePos;
+
+    //Jump values
+    private const float JUMP_COOLDOWN = 0.3f;
+    private float lastJump = 0f;
+    private bool doubleJump = false;
+
+    //Frequently used variables
+    private bool onGround = false;
+    private bool canMove = false;
+
+    private const float MIN_POS_DIFF = 0.2f; //Minimum distance between passive and active body
     private const float MAX_POS_DIFF = 2f; //Maximum movement range of the passive body
+
+    private const float MAX_ROT_DIFF = 10f; //Maximum rotation range of the passive body from active body
 
     private const float HOVER_HEIGHT = 2f; //Default hover height
 
@@ -101,7 +120,6 @@ public class PlayerControllerActive : MonoBehaviour
         //Create new PID store class for PID calculations
         pidStoreMove = new PIDStore<Vector3>();
         pidStoreTorque = new PIDStore<Vector3>();
-        pidStoreHover = new PIDStore<float>();
 
         //Set all components
         body = GetComponent<Rigidbody>();
@@ -112,19 +130,8 @@ public class PlayerControllerActive : MonoBehaviour
         //Set singleton components
         cam = CameraController.instance.transform;
 
-        //Modify rigidbody's center of mass
-        Vector3 centerOfMass = Vector3.zero;
-
-        //Calculate mid point based on all finger root's positions
-        foreach(IKHolder finger in fingers)
-        {
-            centerOfMass += finger.root.position - body.position;
-        }
-
-        //Take the average of the fingers positions
-        centerOfMass /= fingers.Length;
-
-        body.centerOfMass = centerOfMass;
+        //Set center of mass to finger's average position
+        body.centerOfMass = CalculateFingersMass();
 
         //Set joint space for all the fingers
         for(int i = 0; i < fingers.Length; i++)
@@ -148,8 +155,12 @@ public class PlayerControllerActive : MonoBehaviour
     private void Update()
     {
         //Get movement inputs
-        inputVector = new Vector3(Input.GetAxisRaw("Horizontal"), 0f, Input.GetAxisRaw("Vertical"));
+        inputVector = new Vector3(Input.GetAxisRaw("Horizontal"), 0, Input.GetAxisRaw("Vertical"));
 
+        if (Input.GetKeyDown(KeyCode.Space))
+            Jump();
+
+        //Passive body movement
         PassiveMove();
 
         PassiveAim();
@@ -159,6 +170,11 @@ public class PlayerControllerActive : MonoBehaviour
 
     private void FixedUpdate()
     {
+        //Update onGround and canMove value (No need to calculate them in each function)
+        onGround = OnGround();
+        canMove = CanMove();
+
+        //Sync active body with passive body
         //Aim();
         SyncAim();
 
@@ -232,25 +248,34 @@ public class PlayerControllerActive : MonoBehaviour
     /// </summary>
     private void PassiveAim()
     {
-        if (!OnGround()) //We are on falling or jumped
+        Vector3 lookUp;
+        Vector3 lookForward;
+        if (!onGround) //We are falling or we have jumped
         {
             //Aim with keyboard
-            return;
+            float degreeForward = inputVector.z;
+            float degreeRight = -inputVector.x;
+
+            lookForward = Quaternion.AngleAxis(degreeForward, bodyPassive.right) * bodyPassive.forward;
+            lookUp = Quaternion.AngleAxis(degreeRight, bodyPassive.forward) * bodyPassive.up;
         }
         else //We are on ground
         {
             //Calculate surface normal according to finger placements and use it as local up vector
-            Vector3 localUp = AverageTargetNormalPythagor().normalized;
+            lookUp = AverageTargetNormalPythagor(bodyPassive.up).normalized;
 
             //Calculate forward vector with cross product on right and local up vector
-            Vector3 localForward = Vector3.Cross(transform.right, localUp).normalized;
+            Vector3 localForward = Vector3.Cross(bodyPassive.right, lookUp).normalized;
             //Clamp the vector from local forward to cam.forward with angle around local up vector
-            Vector3 lookForward = VectorExtentions.ClampAngleAxis(localForward, cam.forward, localUp, aimXRange.x, aimXRange.y);
-
-            //Use RotateTowards to smoothly rotate passive body
-            Quaternion finalRot = Quaternion.RotateTowards(bodyPassive.rotation, Quaternion.LookRotation(lookForward, localUp), Time.deltaTime * 180f);
-            bodyPassive.rotation = finalRot;
+            lookForward = VectorExtentions.ClampAngleAxis(localForward, cam.forward, lookUp, aimXRange.x, aimXRange.y);
         }
+
+        //Clamp calculated rotation for slow rotation movement
+        Quaternion clampedRot = Quaternion.RotateTowards(body.rotation, Quaternion.LookRotation(lookForward, lookUp), MAX_ROT_DIFF);
+
+        //Use RotateTowards to smoothly rotate passive body
+        Quaternion finalRot = Quaternion.RotateTowards(bodyPassive.rotation, clampedRot, Time.deltaTime * rotateSpeed);
+        bodyPassive.rotation = finalRot;
     }
 
     /// <summary>
@@ -259,7 +284,7 @@ public class PlayerControllerActive : MonoBehaviour
     private void Hover()
     {
         //Check if we are on ground
-        if (!OnGround())
+        if (!onGround)
             return;
 
         //Calculate default hover height
@@ -267,10 +292,6 @@ public class PlayerControllerActive : MonoBehaviour
 
         //Check if default hover height is reachable
         goalHover = Mathf.Min(goalHover, MaxHeight2(bodyPassive.position, bodyPassive.up));
-
-        //COMMENTED DUE TO CONSTANT RISE SPEED, SLOW ADJUSTING ON STEEP SURFACES
-        //float hoverForce = pidHover.UpdatePID(Time.deltaTime, bodyPassive.position.y, goalHover, pidStoreHover);
-        //bodyPassive.position +=  Vector3.up * hoverForce * Time.deltaTime;
 
         //Hover passive body to the goal Y position. Lerp will help passive body to adjust as fast as the difference getting larger.
         Vector3 hoverPos = new Vector3(bodyPassive.position.x,
@@ -321,7 +342,7 @@ public class PlayerControllerActive : MonoBehaviour
     private void SyncMovement()
     {
         //Check if we can move and are on ground
-        if (!CanMove() || !OnGround())
+        if (!canMove || !onGround)
         {
             return;
         }
@@ -344,31 +365,55 @@ public class PlayerControllerActive : MonoBehaviour
     private void PassiveMove()
     {
         //Check if we can move and are on ground
-        if (!CanMove() || !OnGround())
+        if (!canMove || !onGround)
         {
-            //Slowly syncs passive body position to active body position
+            //Slowly syncs passive body position to active body position if too far away
             //Setting it as body.position cause passive body to teleport
-            bodyPassive.position = Vector3.Lerp(bodyPassive.position, body.position, Time.deltaTime * 10f);
+            if(Vector3.Distance(bodyPassive.position, body.position) > MIN_POS_DIFF)
+                bodyPassive.position = Vector3.Lerp(bodyPassive.position, body.position, Time.deltaTime * airLerp);
             return;
         }
 
         //Rotate input vector to where the camera looks
-        Vector3 flatCamForward = cam.forward;
-        flatCamForward.y = 0f;
-        float angle = Vector3.SignedAngle(Vector3.forward, flatCamForward, Vector3.up);
-        Vector3 movement2D = Quaternion.AngleAxis(angle, Vector3.up) * inputVector;
-        movement2D = Quaternion.AngleAxis(transform.localEulerAngles.x, transform.right) * movement2D;
+        Vector3 inputLocal = InputToLocal(inputVector);
 
         //Set passive pos to active body position
         //Can be used either of passivePos calculations
         //passivePos = Vector3.Lerp(passivePos, body.position, (body.position - passivePos).magnitude / MAX_POS_DIFF);
         passivePos = body.position;
 
+        //Separating input vector into axes
+        Vector3 movementLocalXZ = Vector3.ProjectOnPlane(inputLocal, bodyPassive.up);
+        //Calculate from difference (Because jump done with addForce to the active body)
+        Vector3 movementLocalY = Vector3.Project(body.position - bodyPassive.position, bodyPassive.up);
+
         //Calculate final pos with constant distance to prevent passive body to go far away from active body
-        Vector3 finalPos = passivePos + movement2D * MAX_POS_DIFF;
+        Vector3 finalPos = passivePos + movementLocalXZ * MAX_POS_DIFF;
+
+        //Lerp with different values
+        Vector3 lerpFinal = Vector3.Lerp(bodyPassive.position, finalPos, Time.deltaTime * moveXZLerp);
+        lerpFinal = Vector3.Lerp(lerpFinal, lerpFinal + movementLocalY, Time.deltaTime * moveYLerp);
 
         //Move with lerp to move passive body faster as distance between passive body and final position gets bigger
-        bodyPassive.position = Vector3.Lerp(bodyPassive.position, finalPos, Time.deltaTime * 3f);
+        bodyPassive.position = lerpFinal;
+    }
+
+    /// <summary>
+    /// Adds instant up vector force to the active body
+    /// </summary>
+    private void Jump()
+    {
+        if(onGround && Time.time - lastJump > JUMP_COOLDOWN)
+        {
+            body.AddForce(transform.up * jumpForceMultiplier, ForceMode.Impulse);
+            doubleJump = true;
+            lastJump = Time.time;
+        }
+        else if(doubleJump)
+        {
+            body.AddForce(transform.up * jumpForceMultiplier, ForceMode.Impulse);
+            doubleJump = false;
+        }
     }
 
     /// <summary>
@@ -426,7 +471,7 @@ public class PlayerControllerActive : MonoBehaviour
         return total / fingers.Length;
     }
 
-    [System.Obsolete("This method calculates wrong values on some cases. Use AverageTargetNormalPythagor insted.")]
+    [System.Obsolete("This method calculates wrong values on some cases. Use AverageTargetNormalPythagor instead.")]
     /// <summary>
     /// Average normal vector of all IK targets (not normalized).
     /// </summary>
@@ -468,8 +513,9 @@ public class PlayerControllerActive : MonoBehaviour
     /// <summary>
     /// Average normal vector of all IK targets (not normalized).
     /// </summary>
+    /// <param name="defaultUp">If IK not on ground, then use this vector as normal</param>
     /// <returns>Average normal vector (not normalized)</returns>
-    private Vector3 AverageTargetNormalPythagor()
+    private Vector3 AverageTargetNormalPythagor(Vector3 defaultUp)
     {
         //Calculation done with pythagor theorem
         //Lets assume we have ABC triangle where B is right angle
@@ -478,6 +524,12 @@ public class PlayerControllerActive : MonoBehaviour
         Vector3 normal = Vector3.zero;
         foreach (IKHolder ik in fingers)
         {
+            if (!ik.solver.onGround)
+            {
+                normal += defaultUp;
+                continue;
+            }
+
             //Calculate 'c' side
             Vector3 ikNormal = (bodyPassive.position - ik.root.position) * ik.extentMax;
 
@@ -487,7 +539,7 @@ public class PlayerControllerActive : MonoBehaviour
             //Surface normal of the rayHit (also 'a' side)
             Vector3 surfaceNormal = ik.solver.hitNormal;
             //Rotate surface normal with angle of 'C' on cross of 'a' side and 'c' side
-            ikNormal = Quaternion.AngleAxis(deg, Vector3.Cross(surfaceNormal, ikNormal)) * surfaceNormal.normalized;
+            ikNormal = Quaternion.AngleAxis(deg, Vector3.Cross(surfaceNormal, ikNormal)) * surfaceNormal;
 
             //Debug lines to see fingers normal direction
             //Debug.DrawRay(ik.solver.worldPlacePoint, ikNormal, Color.blue);
@@ -622,6 +674,40 @@ public class PlayerControllerActive : MonoBehaviour
     }
 
     /// <summary>
+    /// Calculates and returns fingers center of mass
+    /// </summary>
+    /// <returns></returns>
+    private Vector3 CalculateFingersMass()
+    {
+        Vector3 centerOfMass = Vector3.zero;
+
+        //Calculate mid point based on all finger root's positions
+        foreach (IKHolder finger in fingers)
+        {
+            centerOfMass += finger.root.position - body.position;
+        }
+
+        //Take the average of the fingers positions
+        centerOfMass /= fingers.Length;
+
+        return centerOfMass;
+    }
+
+    /// <summary>
+    /// Converts input global vector to local input vector
+    /// </summary>
+    /// <param name="inputV">Input vector</param>
+    /// <returns></returns>
+    private Vector3 InputToLocal(Vector3 inputV)
+    {
+        Vector3 flatCamForward = cam.forward;
+        flatCamForward.y = 0f;
+        float angle = Vector3.SignedAngle(Vector3.forward, flatCamForward, Vector3.up);
+        Vector3 inputLocal = Quaternion.AngleAxis(angle, Vector3.up) * inputV;
+        return Quaternion.AngleAxis(transform.localEulerAngles.x, transform.right) * inputLocal;
+    }
+
+    /// <summary>
     /// Returns true if any finger is on ground
     /// </summary>
     /// <returns></returns>
@@ -631,7 +717,7 @@ public class PlayerControllerActive : MonoBehaviour
         bool onGround = false;
         foreach (IKHolder holder in fingers)
         {
-            if (holder.solver.onGround)
+            if (holder.solver.onGround && Vector3.Distance(holder.solver.worldPlacePoint, holder.rootActive.position) <= holder.extentMax)
             {
                 onGround = true;
                 break;

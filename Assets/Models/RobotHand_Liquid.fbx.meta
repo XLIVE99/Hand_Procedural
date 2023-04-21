@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: e848ee4d1c6976b4f82be034937edca1
+guid: 0ced7fb70063c0141aba31ab9b4c2fcf
 ModelImporter:
   serializedVersion: 21300
   internalIDToNameTable: []
@@ -8,27 +8,7 @@ ModelImporter:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
       name: Core
-    second: {fileID: 2100000, guid: 2b0c64a2ca0d5e64496a166d8d26982e, type: 2}
-  - first:
-      type: UnityEngine:Material
-      assembly: UnityEngine.CoreModule
-      name: Fingers
-    second: {fileID: 2100000, guid: 0afc9ec8e19bbbb41bb04acde299bc5d, type: 2}
-  - first:
-      type: UnityEngine:Material
-      assembly: UnityEngine.CoreModule
-      name: Palm
-    second: {fileID: 2100000, guid: 8ee3d43f3971de749a574811a8e73fdd, type: 2}
-  - first:
-      type: UnityEngine:Material
-      assembly: UnityEngine.CoreModule
-      name: Thruster
-    second: {fileID: 2100000, guid: 0dc55d2f9f154d248849c77052498d01, type: 2}
-  - first:
-      type: UnityEngine:Material
-      assembly: UnityEngine.CoreModule
-      name: ThrusterInside
-    second: {fileID: 2100000, guid: c56e4f34d6e09924eac22a89ed71f887, type: 2}
+    second: {fileID: 2100000, guid: 635704e3565db0b4d95f719a111d3a25, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0
@@ -57,7 +37,7 @@ ModelImporter:
     extraExposedTransformPaths: []
     extraUserProperties: []
     clipAnimations: []
-    isReadable: 0
+    isReadable: 1
   meshes:
     lODScreenPercentages: []
     globalScale: 7
@@ -120,7 +100,7 @@ ModelImporter:
     skeletonHasParents: 1
   lastHumanDescriptionAvatarSource: {instanceID: 0}
   autoGenerateAvatarMappingIfUnspecified: 1
-  animationType: 2
+  animationType: 0
   humanoidOversampling: 1
   avatarSetup: 0
   addHumanoidExtraRootOnlyWhenUsingAvatar: 1
