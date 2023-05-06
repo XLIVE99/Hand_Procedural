@@ -1,86 +1,130 @@
 using UnityEngine;
 
-public class TargetIKSolver : MonoBehaviour
+namespace HandWar
 {
-    [SerializeField] private Transform rayPoint;
-    [SerializeField] private float rayLength = 3f;
-    [SerializeField] private Transform target;
-    [SerializeField] private float moveDistance;
-    [SerializeField] private float moveSpeed = 2f;
-    [SerializeField] private float rayRadius = 0.2f;
-
-    private Vector3 oldPos;
-    public Vector3 worldPlacePoint { get; private set; }
-    private float lerp;
-    public bool isMoving { get; private set; } = false;
-    public bool onGround { get; private set; } = false;
-
-    public Vector3 rayDir { get { return -rayPoint.up; } }
-    public Vector3 hitNormal { get; private set; }
-
-    private const float MOVE_UP_LENGTH = 0.4f;
-
-    private void Start()
+    public class TargetIKSolver : MonoBehaviour
     {
-        CheckPos(true);
-        lerp = 1f; //Instantly place target to the worldPlacePoint
-    }
+        [SerializeField] private Transform rayPoint;
+        [SerializeField] private float rayLength = 3f;
+        [SerializeField] private Transform target;
+        [SerializeField] private float moveDistance;
+        [SerializeField] private float moveSpeed = 2f;
+        [SerializeField] private float rayRadius = 0.2f;
 
-    private void Update()
-    {
-        PlaceTarget(worldPlacePoint);
-    }
+        private Vector3 oldPos;
+        public Vector3 worldPlacePoint { get; private set; }
+        private float lerp;
+        public bool isMoving { get; private set; } = false;
+        public bool onGround { get; private set; } = false;
 
-    private void FixedUpdate()
-    {
-        CheckPos();
-    }
+        private bool rayOverriden = false;
 
-    private void CheckPos(bool force = false)
-    {
-        RaycastHit hitInfo;
-        if(Physics.SphereCast(rayPoint.position, rayRadius, -rayPoint.up, out hitInfo, rayLength, LayerMask.GetMask("Terrain")))
+        public Vector3 rayDir { get; private set; }
+        public Vector3 hitNormal { get; private set; }
+
+        private const float MOVE_UP_LENGTH = 0.4f;
+        private const float IDLE_DIST = 0.85f;
+
+#if UNITY_EDITOR
+        private void OnDrawGizmos()
         {
-            onGround = true;
-            hitNormal = hitInfo.normal;
-            if(force || Vector3.Distance(worldPlacePoint, hitInfo.point) >= moveDistance)
+            Gizmos.color = Color.blue;
+            Gizmos.DrawLine(rayPoint.position, rayPoint.position - rayPoint.up * rayLength);
+        }
+#endif
+
+        private void Start()
+        {
+            CheckPos(true);
+            lerp = 1f; //Instantly place target to the worldPlacePoint
+        }
+
+        private void Update()
+        {
+            PlaceTarget(worldPlacePoint);
+        }
+
+        private void FixedUpdate()
+        {
+            CheckPos();
+        }
+
+        public void OverrideRayDirection(Vector3 dir)
+        {
+            rayDir = dir;
+
+            if (!rayOverriden)
+                rayOverriden = true;
+        }
+
+        public void ResetRayDirection()
+        {
+            if (rayOverriden)
+                rayOverriden = false;
+        }
+
+        public void ChangeRayLength(float length)
+        {
+            rayLength = Mathf.Max(length + rayPoint.localPosition.y - 0.7f, 0f);
+
+            //Prevent unnecessary calculation to gain performance
+            if (!Mathf.Approximately(rayLength, 0f) != enabled)
+                enabled = !Mathf.Approximately(rayLength, 0f);
+        }
+
+        private void CheckPos(bool force = false)
+        {
+            Vector3 rayDirection = -rayPoint.up;
+            if (rayOverriden)
+                rayDirection = rayDir;
+
+            RaycastHit hitInfo;
+            if (Physics.SphereCast(rayPoint.position, rayRadius, rayDirection, out hitInfo, rayLength, LayerMask.GetMask("Terrain")))
             {
-                oldPos = worldPlacePoint;
-                worldPlacePoint = hitInfo.point;
-                isMoving = true;
-                lerp = 0;
+                onGround = true;
+                hitNormal = hitInfo.normal;
+                if (force || Vector3.Distance(worldPlacePoint, hitInfo.point) >= moveDistance)
+                {
+                    ReplaceWorldPlace(hitInfo.point);
+                }
+                else if (isMoving)
+                {
+                    worldPlacePoint = hitInfo.point;
+                }
             }
-            else if(isMoving)
+            else if (onGround)
             {
-                worldPlacePoint = hitInfo.point;
+                ReplaceWorldPlace(rayPoint.position + rayDirection * rayLength * IDLE_DIST);
+                onGround = false;
+            }
+            else
+            {
+                worldPlacePoint = rayPoint.position + rayDirection * rayLength * IDLE_DIST;
+            }
+            Debug.DrawLine(rayPoint.position, worldPlacePoint, Color.green);
+        }
+
+        private void PlaceTarget(Vector3 worldPos)
+        {
+            target.position = Vector3.Lerp(oldPos, worldPos, lerp) + hitNormal * MOVE_UP_LENGTH * Mathf.Sin(lerp * Mathf.PI);
+
+            if (isMoving)
+            {
+                lerp = Mathf.MoveTowards(lerp, 1f, Time.deltaTime * moveSpeed);
+                if (lerp >= 1f)
+                {
+                    lerp = 1f;
+                    isMoving = false;
+                }
             }
         }
-        else if(onGround)
+
+        private void ReplaceWorldPlace(Vector3 p)
         {
             oldPos = worldPlacePoint;
-            worldPlacePoint = rayPoint.position - rayPoint.up * rayLength * 0.7f;
+            worldPlacePoint = p;
             isMoving = true;
-            onGround = false;
             lerp = 0;
-        }
-        else
-        {
-            worldPlacePoint = rayPoint.position - rayPoint.up * rayLength * 0.7f;
-        }
-    }
-
-    private void PlaceTarget(Vector3 worldPos)
-    {
-        target.position = Vector3.Lerp(oldPos, worldPos, lerp) + hitNormal * MOVE_UP_LENGTH * Mathf.Sin(lerp * Mathf.PI);
-
-        if(isMoving)
-        {
-            lerp = Mathf.MoveTowards(lerp, 1f, Time.deltaTime * moveSpeed);
-            if (lerp >= 1f)
-            {
-                lerp = 1f;
-                isMoving = false;
-            }
         }
     }
 }

@@ -1,27 +1,9 @@
-Shader "Lpk/LightModel/ToonLightTransparentBase"
+Shader "Lpk/LightModel/ToonLightLitParticle"
 {
     Properties
     {
         _BaseMap            ("Texture", 2D)                       = "white" {}
         _BaseColor          ("Color", Color)                      = (0.5,0.5,0.5,1)
-        
-        [Space]
-        _ShadowStep         ("ShadowStep", Range(0, 1))           = 0.5
-        _ShadowStepSmooth   ("ShadowStepSmooth", Range(0, 1))     = 0.04
-        
-        [Space] 
-        _SpecularStep       ("SpecularStep", Range(0, 1))         = 0.6
-        _SpecularStepSmooth ("SpecularStepSmooth", Range(0, 1))   = 0.05
-        [HDR]_SpecularColor ("SpecularColor", Color)              = (1,1,1,1)
-        
-        [Space]
-        _RimStep            ("RimStep", Range(0, 1))              = 0.65
-        _RimStepSmooth      ("RimStepSmooth",Range(0,1))          = 0.4
-        _RimColor           ("RimColor", Color)                   = (1,1,1,1)
-        
-        [Space]   
-        _OutlineWidth      ("OutlineWidth", Range(0.0, 1.0))      = 0.15
-        _OutlineColor      ("OutlineColor", Color)                = (0.0, 0.0, 0.0, 1)
     }
     SubShader
     {
@@ -45,7 +27,7 @@ Shader "Lpk/LightModel/ToonLightTransparentBase"
 
             #pragma vertex vert
             #pragma fragment frag
-            #pragma shader_feature _ALPHATEST_ON
+            // #pragma shader_feature _ALPHATEST_ON
             // #pragma shader_feature _ALPHAPREMULTIPLY_ON
             #pragma multi_compile _ _SHADOWS_SOFT
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS
@@ -63,14 +45,6 @@ Shader "Lpk/LightModel/ToonLightTransparentBase"
 
             CBUFFER_START(UnityPerMaterial)
                 float4 _BaseColor;
-                float _ShadowStep;
-                float _ShadowStepSmooth;
-                float _SpecularStep;
-                float _SpecularStepSmooth;
-                float4 _SpecularColor;
-                float _RimStepSmooth;
-                float _RimStep;
-                float4 _RimColor;
             CBUFFER_END
 
             struct Attributes
@@ -79,6 +53,7 @@ Shader "Lpk/LightModel/ToonLightTransparentBase"
                 float3 normalOS     : NORMAL;
                 float4 tangentOS    : TANGENT;
                 float2 uv           : TEXCOORD0;
+				float4 vColor		 : COLOR0;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             }; 
 
@@ -93,6 +68,7 @@ Shader "Lpk/LightModel/ToonLightTransparentBase"
 				float4 fogCoord	     : TEXCOORD6;	
 				float3 positionWS	 : TEXCOORD7;	
                 float4 positionCS    : SV_POSITION;
+				float4 vColor		 : COLOR0;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
@@ -116,6 +92,7 @@ Shader "Lpk/LightModel/ToonLightTransparentBase"
                 output.bitangentWS = float4(normalInput.bitangentWS, viewDirWS.z);
                 output.viewDirWS = viewDirWS;
                 output.fogCoord = ComputeFogFactor(output.positionCS.z);
+				output.vColor = input.vColor;
                 return output;
             }
             
@@ -144,85 +121,21 @@ Shader "Lpk/LightModel/ToonLightTransparentBase"
 
                 float4 baseMap = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, uv);
 
-                // return NH;
-               float specularNH = smoothstep((1-_SpecularStep * 0.05)  - _SpecularStepSmooth * 0.05, (1-_SpecularStep* 0.05)  + _SpecularStepSmooth * 0.05, NH) ;
-               float shadowNL = smoothstep(_ShadowStep - _ShadowStepSmooth, _ShadowStep + _ShadowStepSmooth, NL);
-
 				input.shadowCoord = TransformWorldToShadowCoord(input.positionWS);
                 
                 //shadow
                 float shadow = MainLightRealtimeShadow(input.shadowCoord);
                 
-                //rim
-                float rim = smoothstep((1-_RimStep) - _RimStepSmooth * 0.5, (1-_RimStep) + _RimStepSmooth * 0.5, 0.5 - NV);
-                
                 //diffuse
-                float3 diffuse = _MainLightColor.rgb * baseMap * _BaseColor * shadowNL * shadow;
-                
-                //specular
-                float3 specular = _SpecularColor * shadow * shadowNL *  specularNH;
+                float3 diffuse = _MainLightColor.rgb * baseMap * _BaseColor * input.vColor * shadow;
                 
                 //ambient
-                float3 ambient =  rim * _RimColor + SampleSH(N) * _BaseColor * baseMap;
+                float3 ambient = SampleSH(N) * _BaseColor * baseMap;
             
-                float3 finalColor = diffuse + ambient + specular;
+                float3 finalColor = diffuse + ambient;
                 finalColor = MixFog(finalColor, input.fogCoord);
-                return float4(finalColor , min(baseMap.a, _BaseColor.a));
+                return float4(finalColor, min(baseMap.a, _BaseColor.a * input.vColor.a));
             }
-            ENDHLSL
-        }
-        
-        //Outline
-        Pass
-        {
-            Name "Outline"
-            Cull Front
-            Tags
-            {
-                "LightMode" = "SRPDefaultUnlit"
-            }
-
-			Blend SrcAlpha OneMinusSrcAlpha
-			ZWrite Off
-
-            HLSLPROGRAM
-            #pragma vertex vert
-            #pragma fragment frag
-            #pragma multi_compile_fog
-            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
-            
-            struct appdata
-            {
-                float4 vertex : POSITION;
-                float3 normal : NORMAL;
-                float4 tangent : TANGENT;
-            };
-
-            struct v2f
-            {
-                float4 pos      : SV_POSITION;
-                float4 fogCoord	: TEXCOORD0;	
-            };
-            
-            float _OutlineWidth;
-            float4 _OutlineColor;
-            
-            v2f vert(appdata v)
-            {
-                v2f o;
-                VertexPositionInputs vertexInput = GetVertexPositionInputs(v.vertex.xyz);
-                o.pos = TransformObjectToHClip(float4(v.vertex.xyz + v.normal * _OutlineWidth * 0.1 ,1));
-                o.fogCoord = ComputeFogFactor(vertexInput.positionCS.z);
-
-                return o;
-            }
-
-            float4 frag(v2f i) : SV_Target
-            {
-                float3 finalColor = MixFog(_OutlineColor, i.fogCoord);
-                return float4(finalColor, _OutlineColor.a);
-            }
-            
             ENDHLSL
         }
         UsePass "Universal Render Pipeline/Lit/ShadowCaster"

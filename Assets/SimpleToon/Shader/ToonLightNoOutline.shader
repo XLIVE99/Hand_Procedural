@@ -1,4 +1,4 @@
-Shader "Lpk/LightModel/ToonLightTransparentBase"
+Shader "Lpk/LightModel/ToonLightNoOutline"
 {
     Properties
     {
@@ -18,14 +18,10 @@ Shader "Lpk/LightModel/ToonLightTransparentBase"
         _RimStep            ("RimStep", Range(0, 1))              = 0.65
         _RimStepSmooth      ("RimStepSmooth",Range(0,1))          = 0.4
         _RimColor           ("RimColor", Color)                   = (1,1,1,1)
-        
-        [Space]   
-        _OutlineWidth      ("OutlineWidth", Range(0.0, 1.0))      = 0.15
-        _OutlineColor      ("OutlineColor", Color)                = (0.0, 0.0, 0.0, 1)
     }
     SubShader
     {
-        Tags { "Queue" = "Transparent" "RenderType" = "Transparent" "RenderPipeline" = "UniversalPipeline" }
+        Tags { "RenderType" = "Opaque" "RenderPipeline" = "UniversalPipeline" }
         
         Pass
         {
@@ -34,10 +30,6 @@ Shader "Lpk/LightModel/ToonLightTransparentBase"
             {
                 "LightMode" = "UniversalForward"
             }
-
-			Blend SrcAlpha OneMinusSrcAlpha
-			ZWrite Off
-
             HLSLPROGRAM
             // Required to compile gles 2.0 with standard srp library
             #pragma prefer_hlslcc gles
@@ -45,7 +37,7 @@ Shader "Lpk/LightModel/ToonLightTransparentBase"
 
             #pragma vertex vert
             #pragma fragment frag
-            #pragma shader_feature _ALPHATEST_ON
+            // #pragma shader_feature _ALPHATEST_ON
             // #pragma shader_feature _ALPHAPREMULTIPLY_ON
             #pragma multi_compile _ _SHADOWS_SOFT
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS
@@ -167,62 +159,8 @@ Shader "Lpk/LightModel/ToonLightTransparentBase"
             
                 float3 finalColor = diffuse + ambient + specular;
                 finalColor = MixFog(finalColor, input.fogCoord);
-                return float4(finalColor , min(baseMap.a, _BaseColor.a));
+                return float4(finalColor , 1.0);
             }
-            ENDHLSL
-        }
-        
-        //Outline
-        Pass
-        {
-            Name "Outline"
-            Cull Front
-            Tags
-            {
-                "LightMode" = "SRPDefaultUnlit"
-            }
-
-			Blend SrcAlpha OneMinusSrcAlpha
-			ZWrite Off
-
-            HLSLPROGRAM
-            #pragma vertex vert
-            #pragma fragment frag
-            #pragma multi_compile_fog
-            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
-            
-            struct appdata
-            {
-                float4 vertex : POSITION;
-                float3 normal : NORMAL;
-                float4 tangent : TANGENT;
-            };
-
-            struct v2f
-            {
-                float4 pos      : SV_POSITION;
-                float4 fogCoord	: TEXCOORD0;	
-            };
-            
-            float _OutlineWidth;
-            float4 _OutlineColor;
-            
-            v2f vert(appdata v)
-            {
-                v2f o;
-                VertexPositionInputs vertexInput = GetVertexPositionInputs(v.vertex.xyz);
-                o.pos = TransformObjectToHClip(float4(v.vertex.xyz + v.normal * _OutlineWidth * 0.1 ,1));
-                o.fogCoord = ComputeFogFactor(vertexInput.positionCS.z);
-
-                return o;
-            }
-
-            float4 frag(v2f i) : SV_Target
-            {
-                float3 finalColor = MixFog(_OutlineColor, i.fogCoord);
-                return float4(finalColor, _OutlineColor.a);
-            }
-            
             ENDHLSL
         }
         UsePass "Universal Render Pipeline/Lit/ShadowCaster"
