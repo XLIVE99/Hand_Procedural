@@ -21,7 +21,7 @@ namespace HandWar
         [ContextMenu("IK length")]
         private void CalculateLength()
         {
-            Debug.Log(root.name + " length: " + GetLength());
+            Debug.Log(root.name + " length: " + recursiveLength(root));
         }
 #endif
 
@@ -61,6 +61,7 @@ namespace HandWar
             body.useGravity = true;
 
             selectedSegment.gameObject.SetActive(false);
+            selectedPassive.gameObject.SetActive(false);
             solver.ChangeRayLength(GetLength(false));
 
             ChainIKConstraint chainIK = solver.GetComponent<ChainIKConstraint>();

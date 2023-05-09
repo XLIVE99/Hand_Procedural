@@ -1,4 +1,5 @@
 using UnityEngine;
+using Extension;
 
 namespace HandWar
 {
@@ -6,27 +7,38 @@ namespace HandWar
     [RequireComponent(typeof(Camera))]
     public class CameraController : MonoBehaviour
     {
-        [SerializeField] private Transform target;
-        [SerializeField] private Vector3 globalOffset, localOffset;
-        [SerializeField] private Transform lookTarget;
-        [SerializeField] private Vector3 lookGlobalOffset, lookLocalOffset;
+        //Offsets
+        [SerializeField] private TrackInfo positionTrack;
+        [SerializeField] private TrackInfo lookTrack;
+
+        //Zoom parameters
         [SerializeField, Space(5)] private float distance = 8f;
         [SerializeField] private Vector2 distanceClamp;
         [SerializeField] private float zoomDistance = 4f;
-        [SerializeField, Space(5)] private float sensitivity = 3f;
-        [SerializeField] private float smoothTime = 0.3f;
-        [SerializeField] private LayerMask checkLayers;
 
-        //private Vector3 velocity = Vector3.zero; //Uncomment when using smoothstep
+        //Vertical rotation limit
+        [SerializeField, Space(5)] private Vector2 verticalLimit; //Local positionTrack target limit
+
+        //Other parameters
+        [SerializeField, Space(5)] private float sensitivity = 3f;
+        [SerializeField] private float speed = 0.3f;
+        [SerializeField] private LayerMask collisionLayers;
+
+        [System.Serializable]
+        public struct TrackInfo
+        {
+            public Transform target;
+            public Vector3 globalOffset;
+            public Vector3 localOffset;
+        }
+
         private Vector3 direction;
 
         private Camera cam;
         private float raySphereRadius;
         private bool isZoom = false;
 
-        private const float MIN_X_EULER = -60f;
-        private const float MAX_X_EULER = 60f;
-
+        #region SINGLETON
         public static CameraController instance;
         private void Awake()
         {
@@ -39,12 +51,84 @@ namespace HandWar
 
             cam = GetComponent<Camera>();
         }
+        #endregion
+
+#if UNITY_EDITOR
+        private void OnDrawGizmosSelected()
+        {
+            if (positionTrack.target == null || lookTrack.target == null)
+                return;
+
+            float radius = 0f;
+            float offsetY = 0f;
+            //Draw top point of camera range
+            radius = Mathf.Cos(Mathf.Min(verticalLimit.y, 90f) * Mathf.Deg2Rad) * distance;
+            offsetY = Mathf.Sin(Mathf.Min(verticalLimit.y, 90f) * Mathf.Deg2Rad) * distance;
+            GizmosDrawCircle(CalculateTrackPoint(positionTrack) + positionTrack.target.up * offsetY, radius, positionTrack.target.up, Color.cyan);
+
+            //Middle point of camera range
+            GizmosDrawCircle(CalculateTrackPoint(positionTrack), distance, positionTrack.target.up, Color.black);
+
+            //Bottom point of camera range
+            radius = Mathf.Cos(Mathf.Min(-verticalLimit.x, 90f) * Mathf.Deg2Rad) * distance;
+            offsetY = Mathf.Sin(Mathf.Min(-verticalLimit.x, 90f) * Mathf.Deg2Rad) * distance;
+            GizmosDrawCircle(CalculateTrackPoint(positionTrack) - positionTrack.target.up * offsetY, radius, positionTrack.target.up, Color.blue);
+        }
+
+        private void GizmosDrawCircle(Vector3 center, float radius, Vector3 normal, Color c)
+        {
+            Gizmos.color = c;
+            Vector3 tangent = Vector3.Cross(normal, Vector3.up);
+            if (Vector3.Cross(normal, Vector3.forward).magnitude > tangent.magnitude)
+                tangent = Vector3.Cross(normal, Vector3.forward);
+            tangent.Normalize();
+
+            for(int i = 0; i < 360; i++)
+            {
+                Gizmos.DrawLine(center + Quaternion.AngleAxis(i, normal) * tangent * radius,
+                    center + Quaternion.AngleAxis(i + 1, normal) * tangent * radius);
+            }
+        }
+
+        [ContextMenu("Update current position")]
+        private void UpdatePosition()
+        {
+            direction = (transform.position - CalculateTrackPoint(positionTrack)).normalized;
+
+            //Clamp direction depend on Target (Method commented below)
+            direction = VectorExtensions.ClampAngleAxis(direction, positionTrack.target.up, verticalLimit.x, verticalLimit.y);
+
+            //Camera zoom in and out
+            float currentDistance = 0f;
+            if (isZoom)
+                currentDistance = zoomDistance;
+            else
+            {
+                distance = Mathf.Clamp(distance - Input.GetAxis("Mouse ScrollWheel") * 5f, distanceClamp.x, distanceClamp.y);
+                currentDistance = distance;
+            }
+
+            //Set camera position
+            Vector3 localDirection = transform.position - CalculateTrackPoint(positionTrack);
+
+            //Collision detection
+            if (Physics.SphereCast(CalculateTrackPoint(positionTrack), raySphereRadius, direction, out RaycastHit hitInfo, distance, collisionLayers))
+                currentDistance = hitInfo.distance;
+
+            Vector3 slerpDirection = Vector3.Slerp(localDirection, direction * currentDistance, Time.deltaTime * speed);
+
+            transform.position = CalculateTrackPoint(positionTrack) + slerpDirection;
+
+            //Camera rotation
+            transform.LookAt(CalculateTrackPoint(lookTrack));
+        }
+#endif
 
         private void Start()
         {
             UpdateRaySphereRadius();
 
-            direction = (transform.position - CalculateRawPosition()).normalized;
+            direction = (transform.position - CalculateTrackPoint(positionTrack)).normalized;
         }
 
         private void LateUpdate()
@@ -52,15 +136,18 @@ namespace HandWar
             float inputX = Input.GetAxisRaw("Mouse X") * sensitivity;
             float inputY = Input.GetAxisRaw("Mouse Y") * sensitivity;
 
-            //Angle limit calculations
+            //Angle limit calculations (Limit vertical rotation)
             Vector3 flatYSurface = -transform.forward;
             flatYSurface.y = 0f;
             float signedAngle = Vector3.SignedAngle(flatYSurface, direction, transform.right);
 
-            inputY = Mathf.Clamp(signedAngle + inputY, MIN_X_EULER, MAX_X_EULER) - signedAngle;
+            inputY = Mathf.Clamp(inputY + signedAngle, -85f, 85f) - signedAngle; //General limit (to prevent flip)
 
-            //Set direction
+            //Rotate direction
             direction = Quaternion.AngleAxis(inputX, Vector3.up) * Quaternion.AngleAxis(inputY, transform.right) * direction;
+
+            //Clamp direction depend on Target (Method commented below), Local limit
+            direction = VectorExtensions.ClampAngleAxis(direction, -positionTrack.target.up, verticalLimit.x, verticalLimit.y);
 
             //Camera zoom in and out
             float currentDistance = 0f;
@@ -72,13 +159,19 @@ namespace HandWar
                 currentDistance = distance;
             }
 
-            //Camera position
-            //transform.position = Vector3.Lerp(transform.position, CheckCollision(CalculatePosition()), Time.deltaTime * smoothTime);
-            transform.position = Vector3.Slerp(transform.position, CheckCollision(CalculatePosition(currentDistance), currentDistance), Time.deltaTime * smoothTime);
-            //transform.position = Vector3.SmoothDamp(transform.position, CheckCollision(CalculatePosition()), ref velocity, smoothTime);
+            //Set camera position
+            Vector3 localDirection = transform.position - CalculateTrackPoint(positionTrack);
+
+            //Collision detection
+            if(Physics.SphereCast(CalculateTrackPoint(positionTrack), raySphereRadius, direction, out RaycastHit hitInfo, distance, collisionLayers))
+                currentDistance = hitInfo.distance;
+
+            Vector3 slerpDirection = Vector3.Slerp(localDirection, direction * currentDistance, Time.deltaTime * speed);
+
+            transform.position = CalculateTrackPoint(positionTrack) + slerpDirection;
 
             //Camera rotation
-            transform.LookAt(CalculateLookPosition());
+            transform.LookAt(CalculateTrackPoint(lookTrack));
         }
 
         public void ZoomIn()
@@ -91,22 +184,10 @@ namespace HandWar
             isZoom = false;
         }
 
-        //Position calculations
-        private Vector3 CalculatePosition(float distance)
+        //Offsetted track point calculation
+        private Vector3 CalculateTrackPoint(TrackInfo t)
         {
-            return CalculateRawPosition() + direction * distance;
-        }
-
-        //Target point calculations
-        private Vector3 CalculateRawPosition()
-        {
-            return target.position + globalOffset + transform.TransformVector(localOffset);
-        }
-
-        //Focus point calculations
-        private Vector3 CalculateLookPosition()
-        {
-            return lookTarget.position + lookGlobalOffset + lookTarget.TransformVector(lookLocalOffset);
+            return t.target.position + t.globalOffset + t.target.TransformVector(t.localOffset);
         }
 
         //Updates ray sphere radius (update the radius if Camera's near clip plane, field of view or aspect is changed)
@@ -122,19 +203,23 @@ namespace HandWar
             raySphereRadius = (forwardL + upL + rightL).magnitude * 0.5f;
         }
 
-        //Check for any camera collision
-        private Vector3 CheckCollision(Vector3 restPos, float distance)
+        /*
+        /// <summary>
+        /// Clamps the vector with angle in relation to axis
+        /// </summary>
+        /// <param name="vector">The vector that will clamped</param>
+        /// <param name="normal">Axis vector, that rotates other vector around</param>
+        /// <param name="minAngle">Minimum angle</param>
+        /// <param name="maxAngle">Maximum angle</param>
+        /// <returns></returns>
+        public static Vector3 ClampAngleAxis(Vector3 vector, Vector3 normal, float minAngle, float maxAngle)
         {
-            Vector3 rawPos = CalculateRawPosition();
-            Vector3 direction = restPos - rawPos;
-            RaycastHit hitInfo;
+            Vector3 right = Vector3.Cross(normal, vector);
+            Vector3 forward = Vector3.Cross(right, normal);
+            float currentAngle = Vector3.SignedAngle(forward, vector, right);
+            float clampedAngle = Mathf.Clamp(currentAngle, minAngle, maxAngle);
 
-            if (Physics.SphereCast(rawPos, raySphereRadius, direction, out hitInfo, distance, checkLayers))
-            {
-                restPos = rawPos + direction.normalized * hitInfo.distance;
-            }
-
-            return restPos;
-        }
+            return Quaternion.AngleAxis(clampedAngle - currentAngle, right) * vector;
+        }*/
     }
 }

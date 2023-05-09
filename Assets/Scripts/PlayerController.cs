@@ -240,21 +240,23 @@ namespace HandWar
                 Vector3 localForward = Vector3.Cross(bodyPassive.right, lookUp).normalized;
 
                 Vector3 forwardDirection = cam.forward;
+
                 //Check if we are aiming
-                /*if(isAiming && selectedAimFinger != null)
+                if(isAiming && selectedAimFinger != null)
                 {
                     Vector3 diff = selectedAimFinger.rootActive.position - transform.position;
-                    Vector3 diffProjected = Vector3.ProjectOnPlane(diff, lookUp);
-                    Vector3 camProjected = Vector3.ProjectOnPlane(cam.forward, lookUp);
+                    //Vector3 diffProjected = Vector3.ProjectOnPlane(diff, lookUp);
+                    //Vector3 camProjected = Vector3.ProjectOnPlane(cam.forward, lookUp);
                     float angle = Vector3.Angle(selectedAimFinger.rootActive.position - transform.position, cam.forward);
                     forwardDirection = Quaternion.AngleAxis(angle, Vector3.Cross(diff, cam.forward)) * cam.forward;
-                }*/
+                }
 
                 //Clamp the vector from local forward to forwardDirection with angle around local up vector
-                lookForward = VectorExtensions.ClampAngleAxis(localForward, forwardDirection, lookUp, aimXRange.x, aimXRange.y);
+                lookForward = VectorExtensions.ClampAngleAxis(forwardDirection, lookUp, aimXRange.x, aimXRange.y);
+                Debug.DrawRay(transform.position, localForward, Color.cyan);
                 Debug.DrawRay(transform.position, lookForward, Color.red);
                 Debug.DrawRay(transform.position, lookUp, Color.green);
-                Debug.DrawLine(transform.position, cam.position, Color.blue);
+                Debug.DrawRay(transform.position, forwardDirection, Color.blue);
             }
 
             //Clamp calculated rotation for slow rotation movement

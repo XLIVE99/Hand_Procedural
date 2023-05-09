@@ -38,35 +38,19 @@ namespace Extension
         /// <summary>
         /// Clamps the vector with angle in relation to axis
         /// </summary>
-        /// <param name="from">Base vector that stays</param>
-        /// <param name="to">The vector that will clamped</param>
+        /// <param name="vector">The vector that will clamped</param>
         /// <param name="normal">Axis vector, that rotates other vector around</param>
         /// <param name="minAngle">Minimum angle</param>
         /// <param name="maxAngle">Maximum angle</param>
         /// <returns></returns>
-        public static Vector3 ClampAngleAxis(this Vector3 from, Vector3 to, Vector3 normal, float minAngle, float maxAngle)
+        public static Vector3 ClampAngleAxis(Vector3 vector, Vector3 normal, float minAngle, float maxAngle)
         {
-            return ClampAngleAxis(from, to, normal, Vector3.up, minAngle, maxAngle);
-        }
-
-        /// <summary>
-        /// Clamps the vector with angle in relation to axis
-        /// </summary>
-        /// <param name="from">Base vector that stays</param>
-        /// <param name="to">The vector that will clamped</param>
-        /// <param name="normal">Axis vector, that rotates other vector around</param>
-        /// <param name="worldUp">Up vector to calculate positive and negative angle</param>
-        /// <param name="minAngle">Minimum angle</param>
-        /// <param name="maxAngle">Maximum angle</param>
-        /// <returns></returns>
-        public static Vector3 ClampAngleAxis(this Vector3 from, Vector3 to, Vector3 normal, Vector3 worldUp, float minAngle, float maxAngle)
-        {
-            Vector3 right = Vector3.Cross(normal, to);
+            Vector3 right = Vector3.Cross(normal, vector);
             Vector3 forward = Vector3.Cross(right, normal);
-            float currentAngle = Vector3.SignedAngle(forward, to, right);
+            float currentAngle = Vector3.SignedAngle(forward, vector, right);
             float clampedAngle = Mathf.Clamp(currentAngle, minAngle, maxAngle);
 
-            return Quaternion.AngleAxis(clampedAngle - currentAngle, right) * to;
+            return Quaternion.AngleAxis(clampedAngle - currentAngle, right) * vector;
         }
     }
 }

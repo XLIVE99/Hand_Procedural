@@ -65,18 +65,23 @@ namespace HandWar
 
         public void ChangeRayLength(float length)
         {
-            rayLength = Mathf.Max(length + rayPoint.localPosition.y - 0.7f, 0f);
+            //rayLength = Mathf.Max(length + rayPoint.localPosition.y - 0.7f, 0f);
+            rayLength = length + 0.1f; //a little offset
 
             //Prevent unnecessary calculation to gain performance
-            if (!Mathf.Approximately(rayLength, 0f) != enabled)
-                enabled = !Mathf.Approximately(rayLength, 0f);
+            if (length < 0.1f != enabled)
+                enabled = length < 0.1f;
         }
 
         private void CheckPos(bool force = false)
         {
             Vector3 rayDirection = -rayPoint.up;
+            float idleMultiplier = IDLE_DIST;
             if (rayOverriden)
+            {
                 rayDirection = rayDir;
+                idleMultiplier = 1f;
+            }
 
             RaycastHit hitInfo;
             if (Physics.SphereCast(rayPoint.position, rayRadius, rayDirection, out hitInfo, rayLength, LayerMask.GetMask("Terrain")))
@@ -94,12 +99,12 @@ namespace HandWar
             }
             else if (onGround)
             {
-                ReplaceWorldPlace(rayPoint.position + rayDirection * rayLength * IDLE_DIST);
+                ReplaceWorldPlace(rayPoint.position + rayDirection * rayLength * idleMultiplier);
                 onGround = false;
             }
             else
             {
-                worldPlacePoint = rayPoint.position + rayDirection * rayLength * IDLE_DIST;
+                worldPlacePoint = rayPoint.position + rayDirection * rayLength * idleMultiplier;
             }
             Debug.DrawLine(rayPoint.position, worldPlacePoint, Color.green);
         }
