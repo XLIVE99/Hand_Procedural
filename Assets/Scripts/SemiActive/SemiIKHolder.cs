@@ -1,20 +1,20 @@
 using UnityEngine;
 using UnityEngine.Animations.Rigging;
 
-namespace HandWar
+namespace HandWar.SemiActive
 {
-    public class IKHolder : MonoBehaviour
+    public class SemiIKHolder : MonoBehaviour
     {
-        [SerializeField] private IKInfo[] infos;
+        [SerializeField] private SemiIKInfo[] infos;
         [SerializeField] private RigBuilder rigBuilder;
 
         public void Start()
         {
-            foreach (IKInfo info in infos)
+            foreach (SemiIKInfo info in infos)
                 info.Initialize();
         }
 
-        public void FireSegment(IKInfo finger)
+        public void FireSegment(SemiIKInfo finger)
         {
             finger.FireSegment();
 
@@ -24,12 +24,27 @@ namespace HandWar
         }
 
         /// <summary>
+        /// Returns active fingers
+        /// </summary>
+        /// <returns></returns>
+        public int GetActiveFingers()
+        {
+            int i = 0;
+            foreach(SemiIKInfo info in infos)
+            {
+                if (info.IsIKAvailable)
+                    i++;
+            }
+            return i;
+        }
+
+        /// <summary>
         /// Returns a ready to fire finger
         /// </summary>
         /// <returns></returns>
-        public IKInfo GetAvailableIK()
+        public SemiIKInfo GetAvailableIK()
         {
-            foreach(IKInfo info in infos)
+            foreach(SemiIKInfo info in infos)
             {
                 if(info.IsIKAvailable)
                 {
@@ -48,7 +63,7 @@ namespace HandWar
                 return centerOfMass;
 
             //Calculate mid point based on all finger root's positions
-            foreach (IKInfo info in infos)
+            foreach (SemiIKInfo info in infos)
             {
                 centerOfMass += info.root.position;
             }
@@ -67,7 +82,7 @@ namespace HandWar
         public float MaxHeight(Vector3 pos, Vector3 upDir)
         {
             float maxReach = float.MaxValue;
-            foreach(IKInfo info in infos)
+            foreach(SemiIKInfo info in infos)
             {
                 if (!info.solver.onGround)
                     continue;
@@ -86,14 +101,21 @@ namespace HandWar
         /// <returns>Average normal vector (not normalized)</returns>
         public Vector3 AverageTargetNormalPythagor(Vector3 point, Vector3 defaultUp)
         {
-            //Calculation done with pythagor theorem
-            //Lets assume we have ABC triangle where B is right angle
-            //|AB| = a, |AC| = c, |BC| = b
-
             Vector3 normal = Vector3.zero;
-            foreach (IKInfo info in infos)
+            foreach (SemiIKInfo info in infos)
             {
-                normal += info.CalculateNormal((point - info.root.position) * info.extentMax);
+                normal += info.CalculateNormal((point - info.root.position) * info.solver.GetRawLength());
+            }
+
+            return normal;
+        }
+
+        public Vector3 AverageTargetNormalBasic()
+        {
+            Vector3 normal = Vector3.zero;
+            foreach (SemiIKInfo info in infos)
+            {
+                normal += info.basicNormal();
             }
 
             return normal;
@@ -111,7 +133,7 @@ namespace HandWar
 
             //Calculate and return fingers average target position
             Vector3 total = Vector3.zero;
-            foreach (IKInfo info in infos)
+            foreach (SemiIKInfo info in infos)
             {
                 total += info.solver.worldPlacePoint;
             }
@@ -123,7 +145,7 @@ namespace HandWar
         /// </summary>
         public void SyncJointsWithIK()
         {
-            foreach (IKInfo info in infos)
+            foreach (SemiIKInfo info in infos)
             {
                 info.SyncJoints();
             }
@@ -137,9 +159,9 @@ namespace HandWar
         {
             //If at least one finger is on ground, return true
             bool onGround = false;
-            foreach (IKInfo info in infos)
+            foreach (SemiIKInfo info in infos)
             {
-                if (info.solver.onGround && Vector3.Distance(info.solver.worldPlacePoint, info.rootActive.position) <= info.extentMax)
+                if (info.solver.onGround && Vector3.Distance(info.solver.worldPlacePoint, info.rootActive.position) <= info.solver.GetRawLength())
                 {
                     onGround = true;
                     break;
@@ -157,7 +179,7 @@ namespace HandWar
         {
             //If at least one finger is stationary, return true
             bool canMove = false;
-            foreach (IKInfo info in infos)
+            foreach (SemiIKInfo info in infos)
             {
                 if (!info.solver.isMoving)
                 {

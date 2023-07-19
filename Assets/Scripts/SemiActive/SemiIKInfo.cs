@@ -3,14 +3,14 @@ using UnityEngine;
 using UnityEngine.Animations.Rigging;
 using Extension;
 
-namespace HandWar
+namespace HandWar.SemiActive
 {
-    public class IKInfo : MonoBehaviour
+    public class SemiIKInfo : MonoBehaviour
     {
         public Transform root; //IK passive body root
         public Transform rootActive; //IK active body root (joint root)
-        public TargetIKSolver solver; //IK solver
-        public float extentMax; //Maximum extent of the finger
+        public SemiTargetIKSolver solver; //IK solver
+        //public float extentMax; //Maximum extent of the finger
         //public float extentMin; //Minimum extent of the finger (not used)
 
         [HideInInspector]
@@ -21,7 +21,7 @@ namespace HandWar
         [ContextMenu("IK length")]
         private void CalculateLength()
         {
-            Debug.Log(root.name + " length: " + recursiveLength(root));
+            Debug.Log(root.name + " length: " + RecursiveLength(root));
         }
 #endif
 
@@ -57,7 +57,7 @@ namespace HandWar
             GameObject clone = Instantiate(selectedSegment.gameObject, selectedSegment.position, selectedSegment.rotation);
             Destroy(clone.GetComponent<Joint>()); //Remove joint
             Rigidbody body = clone.GetComponent<Rigidbody>();
-            body.AddForce(selectedSegment.up * 5f, ForceMode.Impulse);
+            body.AddForce(selectedSegment.forward * 5f, ForceMode.Impulse);
             body.useGravity = true;
 
             selectedSegment.gameObject.SetActive(false);
@@ -116,7 +116,7 @@ namespace HandWar
 
             //First calculate finger max distance (Law of sines)
             float maxExtentUp = 0;
-            if (currentDist <= extentMax)
+            if (currentDist <= solver.GetRawLength())
             {
                 float angleB = Vector3.Angle(-diffRoot, upDir);
                 if (Mathf.Approximately(angleB, 180f) || Mathf.Approximately(angleB, 0f))
@@ -124,7 +124,7 @@ namespace HandWar
                     //If B equals to 180 degree then up direction and subToLast vectors are in same direction
                     //Just take extent
                     if (angleB > 90f)
-                        maxExtentUp = extentMax - currentDist;
+                        maxExtentUp = solver.GetRawLength() - currentDist;
                     //If B equals to 0 degree then up direction and subToLast vectors are in opposite direction
                     //Reverse the extent
                     else
@@ -135,19 +135,23 @@ namespace HandWar
                     //Since we know two sides and one angle of triangle, we can calculate rest of it with law of sine
                     //One side is 'currentDist' other side is maximum extent of finger
                     //With this calculation we can calculate how far away we can move on 'upDir' direction
-                    float angleC = Mathf.Asin((currentDist * Mathf.Sin(angleB * Mathf.Deg2Rad)) / extentMax) * Mathf.Rad2Deg;
+                    float angleC = Mathf.Asin((currentDist * Mathf.Sin(angleB * Mathf.Deg2Rad)) / solver.GetRawLength()) * Mathf.Rad2Deg;
                     float angleA = 180f - angleB - angleC;
-                    maxExtentUp = (extentMax * Mathf.Sin(angleA * Mathf.Deg2Rad)) / Mathf.Sin(angleB * Mathf.Deg2Rad);
+                    maxExtentUp = (solver.GetRawLength() * Mathf.Sin(angleA * Mathf.Deg2Rad)) / Mathf.Sin(angleB * Mathf.Deg2Rad);
                 }
             }
 
-            return Mathf.Min(maxExtentUp, extentMax - currentDist);
+            return Mathf.Min(maxExtentUp, solver.GetRawLength() - currentDist);
         }
 
         public Vector3 CalculateNormal(Vector3 cSide)
         {
+            //Calculation done with pythagor theorem
+            //Lets assume we have ABC triangle where B is right angle
+            //|AB| = a, |AC| = c, |BC| = b
+
             //Angle of 'C'. We will take 'a' side as maximum extent of the finger
-            float deg = Mathf.Asin(extentMax / cSide.magnitude) * Mathf.Rad2Deg;
+            float deg = Mathf.Asin(solver.GetRawLength() / cSide.magnitude) * Mathf.Rad2Deg;
 
             //Surface normal of the rayHit (also 'a' side)
             Vector3 surfaceNormal = solver.hitNormal;
@@ -159,17 +163,24 @@ namespace HandWar
             //Debug.DrawRay(ik.root.position, Vector3.Cross(surfaceNormal, ikNormal), Color.yellow);
             //Debug.DrawRay(ik.root.position, (bodyPassive.position - ik.root.position) * ik.extentMax, Color.red);
 
-            //Finally, add last normal
             return cSide;
+        }
+
+        public Vector3 basicNormal()
+        {
+            if (solver.onGround)
+                return transform.right;
+            else
+                return Vector3.zero;
         }
 
         public float GetLength(bool calculateInactive = true)
         {
-            return recursiveLength(rootActive, calculateInactive);
+            return RecursiveLength(rootActive, calculateInactive);
         }
 
         //Calculates total distance between last children position and root position
-        private float recursiveLength(Transform parent, bool calculateInactive = true)
+        private float RecursiveLength(Transform parent, bool calculateInactive = true)
         {
             if (!calculateInactive && !parent.gameObject.activeSelf)
                 return 0f;
@@ -178,7 +189,7 @@ namespace HandWar
                 return 0f;
             else
             {
-                return Vector3.Distance(parent.position, parent.GetChild(0).position) + recursiveLength(parent.GetChild(0), calculateInactive);
+                return Vector3.Distance(parent.position, parent.GetChild(0).position) + RecursiveLength(parent.GetChild(0), calculateInactive);
             }
         }
     }

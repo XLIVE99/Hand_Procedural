@@ -7,7 +7,7 @@ namespace HandWar
         [System.Serializable]
         public struct FingerInfo
         {
-            public TargetIKSolver solver;
+            public IKSolverBase solver;
             public GameObject groundLed;
             public GameObject moveLed;
         }

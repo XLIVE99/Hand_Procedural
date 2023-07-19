@@ -1,10 +1,11 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 using Extension;
 
-namespace HandWar
+namespace HandWar.SemiActive
 {
     [RequireComponent(typeof(Rigidbody))]
-    public class PlayerController : MonoBehaviour
+    public class PlayerControllerSemiActive : MonoBehaviour
     {
         //Force multipliers
         [SerializeField] private float moveForceMultiplier = 10f;
@@ -18,11 +19,13 @@ namespace HandWar
         [SerializeField] private float airLerp = 10f;
         [SerializeField, Tooltip("Rotate degree per second")] private float rotateSpeed = 180f;
 
+        [SerializeField] private ParticleSystem thrusterParticle;
+
         //Aim range (low, high)
         [SerializeField] private Vector2 aimXRange;
 
         //All fingers
-        [SerializeField] private IKHolder fingers;
+        [SerializeField] private SemiIKHolder fingers;
 
         //PIDs
         [SerializeField] private PIDController pidMove, pidTorque;
@@ -30,9 +33,10 @@ namespace HandWar
         //Passive body
         [SerializeField] private Transform bodyPassive;
 
-        //Active body and camera
+        //Active body, camera and input class
         private Rigidbody body;
         private Transform cam;
+        private PlayerInputAction playerInputAction;
 
         //PID values
         private PIDStore<Vector3> pidStoreMove;
@@ -57,9 +61,10 @@ namespace HandWar
         private bool onGround = false;
         private bool canMove = false;
         private bool isAiming = false;
+        private int activeFingers = 0;
 
         //Aim finger index
-        private IKInfo selectedAimFinger = null;
+        private SemiIKInfo selectedAimFinger = null;
 
         private const float MIN_POS_DIFF = 1.0f; //Minimum distance between passive and active body
         private const float MAX_POS_DIFF = 2f; //Maximum movement range of the passive body
@@ -95,46 +100,34 @@ namespace HandWar
 
             //Set all components
             body = GetComponent<Rigidbody>();
+
+            //Set inputs
+            playerInputAction = new PlayerInputAction();
+            playerInputAction.Player.Enable();
+            playerInputAction.Player.Jump.performed += ctx => Jump();
+
+            playerInputAction.Player.Aim.performed += ctx => AimFinger();
+            playerInputAction.Player.Aim.canceled += ctx => ReleaseFinger();
+            playerInputAction.Player.Fire.performed += ctx => FireFinger();
         }
 
         private void Start()
         {
             //Set singleton components
             cam = CameraController.instance.transform;
-
-            //Set center of mass to finger's average position
-            body.centerOfMass = fingers.CenterOfMass() - body.position;
         }
 
         private void Update()
         {
+            //Get active finger count
+            activeFingers = fingers.GetActiveFingers();
+
             //Get movement inputs
-            inputVector = new Vector3(Input.GetAxisRaw("Horizontal"), 0, Input.GetAxisRaw("Vertical"));
+            Vector2 rawInput = playerInputAction.Player.Movement.ReadValue<Vector2>();
+            inputVector = new Vector3(rawInput.x, 0, rawInput.y);
 
-            if (Input.GetKeyDown(KeyCode.Space))
-                Jump();
-
-            if (Input.GetMouseButton(1))
-            {
+            if (isAiming)
                 AimFinger();
-                if (Input.GetMouseButtonDown(0))
-                    FireFinger();
-
-                if (!isAiming) //Prevent repeated assigning
-                    isAiming = true;
-            }
-            if(Input.GetMouseButtonDown(1))
-            {
-                CameraController.instance.ZoomIn();
-            }
-            else if (Input.GetMouseButtonUp(1))
-            {
-                CameraController.instance.ZoomOut();
-
-                ReleaseFinger();
-
-                isAiming = false;
-            }
 
             //Passive body movement
             PassiveMove();
@@ -150,11 +143,20 @@ namespace HandWar
             onGround = fingers.OnGround();
             canMove = fingers.CanMove();
 
+            //If we don't have any fingers than check from palm position
+            if(!onGround && activeFingers == 0 && Physics.Raycast(body.position, -transform.up, 1.5f))
+            {
+                //Override onGround value
+                onGround = true;
+            }
+
             //Reset double jump bool (Neccessary to update double jump indicator led)
-            if (onGround && Time.time > JUMP_COOLDOWN + lastJump)
+            if (!doubleJump && onGround && Time.time > JUMP_COOLDOWN + lastJump)
                 doubleJump = true;
 
             SetJumpLeds();
+
+            CameraController.instance.SetLockedState(onGround);
 
             //Sync active body with passive body
             //Aim();
@@ -175,17 +177,29 @@ namespace HandWar
 
             if(selectedAimFinger != null) //There is a possibility where player has no fingers
                 selectedAimFinger.solver.OverrideRayDirection(cam.forward);
+
+            if(!isAiming)
+            {
+                isAiming = true;
+                CameraController.instance.ZoomIn();
+            }
         }
 
         private void ReleaseFinger()
         {
             if (selectedAimFinger != null)
                 selectedAimFinger.solver.ResetRayDirection();
+
+            if(isAiming)
+            {
+                isAiming = false;
+                CameraController.instance.ZoomOut();
+            }
         }
 
         private void FireFinger()
         {
-            if (selectedAimFinger == null)
+            if (selectedAimFinger == null || !isAiming)
                 return;
 
             fingers.FireSegment(selectedAimFinger);
@@ -222,7 +236,7 @@ namespace HandWar
             Vector3 lookUp;
             Vector3 lookForward;
 
-            if (!onGround) //We are falling or we have jumped
+            if (!onGround || activeFingers == 0) //We are falling or we have jumped
             {
                 //Aim with keyboard
                 float degreeForward = inputVector.z;
@@ -244,10 +258,10 @@ namespace HandWar
                 //Check if we are aiming
                 if(isAiming && selectedAimFinger != null)
                 {
-                    Vector3 diff = selectedAimFinger.rootActive.position - transform.position;
+                    Vector3 diff = selectedAimFinger.rootActive.position - bodyPassive.position;
                     //Vector3 diffProjected = Vector3.ProjectOnPlane(diff, lookUp);
                     //Vector3 camProjected = Vector3.ProjectOnPlane(cam.forward, lookUp);
-                    float angle = Vector3.Angle(selectedAimFinger.rootActive.position - transform.position, cam.forward);
+                    float angle = Vector3.Angle(selectedAimFinger.rootActive.position - bodyPassive.position, cam.forward);
                     forwardDirection = Quaternion.AngleAxis(angle, Vector3.Cross(diff, cam.forward)) * cam.forward;
                 }
 
@@ -273,7 +287,7 @@ namespace HandWar
         private void Hover()
         {
             //Check if we are on ground
-            if (!onGround)
+            if (!onGround || activeFingers == 0)
                 return;
 
             //Calculate default hover height
@@ -295,7 +309,7 @@ namespace HandWar
         private void SyncMovement()
         {
             //Check if we can move and are on ground
-            if (!canMove || !onGround)
+            if (!canMove || !onGround || activeFingers == 0)
             {
                 return;
             }
@@ -318,7 +332,7 @@ namespace HandWar
         private void PassiveMove()
         {
             //Check if we can move and are on ground
-            if (!canMove || !onGround)
+            if (!canMove || !onGround || activeFingers == 0)
             {
                 //Slowly syncs passive body position to active body position if pasive body is too far away
 
@@ -329,6 +343,7 @@ namespace HandWar
 
                 //Lerp passive body slowly to active body
                 bodyPassive.position = Vector3.Lerp(bodyPassive.position, body.position, Time.deltaTime * airLerp);
+                //bodyPassive.position = body.position;
                 return;
             }
 
@@ -368,11 +383,17 @@ namespace HandWar
                 body.AddForce(transform.up * jumpForceMultiplier, ForceMode.Impulse);
                 doubleJump = true;
                 lastJump = Time.time;
+
+                if (thrusterParticle != null)
+                    thrusterParticle.Play();
             }
             else if(doubleJump)
             {
                 body.AddForce(transform.up * jumpForceMultiplier, ForceMode.Impulse);
                 doubleJump = false;
+
+                if (thrusterParticle != null)
+                    thrusterParticle.Play();
             }
         }
 

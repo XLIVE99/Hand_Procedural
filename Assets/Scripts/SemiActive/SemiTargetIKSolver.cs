@@ -1,8 +1,8 @@
 using UnityEngine;
 
-namespace HandWar
+namespace HandWar.SemiActive
 {
-    public class TargetIKSolver : MonoBehaviour
+    public class SemiTargetIKSolver : IKSolverBase
     {
         [SerializeField] private Transform rayPoint;
         [SerializeField] private float rayLength = 3f;
@@ -14,8 +14,6 @@ namespace HandWar
         private Vector3 oldPos;
         public Vector3 worldPlacePoint { get; private set; }
         private float lerp;
-        public bool isMoving { get; private set; } = false;
-        public bool onGround { get; private set; } = false;
 
         private bool rayOverriden = false;
 
@@ -23,7 +21,8 @@ namespace HandWar
         public Vector3 hitNormal { get; private set; }
 
         private const float MOVE_UP_LENGTH = 0.4f;
-        private const float IDLE_DIST = 0.85f;
+        private const float IDLE_DIST = 0.7f;
+        private const float LENGTH_OFFSET = 0f;
 
 #if UNITY_EDITOR
         private void OnDrawGizmos()
@@ -66,11 +65,16 @@ namespace HandWar
         public void ChangeRayLength(float length)
         {
             //rayLength = Mathf.Max(length + rayPoint.localPosition.y - 0.7f, 0f);
-            rayLength = length + 0.1f; //a little offset
+            rayLength = length + LENGTH_OFFSET; //a little offset
 
             //Prevent unnecessary calculation to gain performance
-            if (length < 0.1f != enabled)
-                enabled = length < 0.1f;
+            if (length > 0.1f != enabled)
+                enabled = length > 0.1f;
+        }
+
+        public float GetRawLength()
+        {
+            return Mathf.Max(rayLength - LENGTH_OFFSET, 0f);
         }
 
         private void CheckPos(bool force = false)
@@ -84,18 +88,21 @@ namespace HandWar
             }
 
             RaycastHit hitInfo;
-            if (Physics.SphereCast(rayPoint.position, rayRadius, rayDirection, out hitInfo, rayLength, LayerMask.GetMask("Terrain")))
+            if (Physics.SphereCast(rayPoint.position, rayRadius, rayDirection, out hitInfo, rayLength, LayerMask.GetMask("Terrain"))
+                && Vector3.Dot(transform.right, hitInfo.normal) >= 0.7f) //Cos(45 degrees)
             {
-                onGround = true;
                 hitNormal = hitInfo.normal;
                 if (force || Vector3.Distance(worldPlacePoint, hitInfo.point) >= moveDistance)
                 {
                     ReplaceWorldPlace(hitInfo.point);
                 }
-                else if (isMoving)
+                else if (isMoving || !onGround)
                 {
                     worldPlacePoint = hitInfo.point;
                 }
+                //else
+                //    worldPlacePoint = hitInfo.point;
+                onGround = true;
             }
             else if (onGround)
             {

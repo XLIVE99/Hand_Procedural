@@ -14,7 +14,7 @@ namespace Extension
             {
                 Debug.LogError("SetTargetRotationLocal should not be used with joints that are configured in world space. For world space joints, use SetTargetRotation.", joint);
             }
-            SetTargetRotationInternal(joint, targetLocalRotation, startLocalRotation, Space.Self);
+            joint.targetRotation = CalculateTargetRotation(joint, targetLocalRotation, startLocalRotation, Space.Self);
         }
 
         /// <summary>
@@ -27,10 +27,10 @@ namespace Extension
             {
                 Debug.LogError("SetTargetRotation must be used with joints that are configured in world space. For local space joints, use SetTargetRotationLocal.", joint);
             }
-            SetTargetRotationInternal(joint, targetWorldRotation, startWorldRotation, Space.World);
+            joint.targetRotation = CalculateTargetRotation(joint, targetWorldRotation, startWorldRotation, Space.World);
         }
 
-        static void SetTargetRotationInternal(ConfigurableJoint joint, Quaternion targetRotation, Quaternion startRotation, Space space)
+        public static Quaternion CalculateTargetRotation(this ConfigurableJoint joint, Quaternion targetRotation, Quaternion startRotation, Space space)
         {
             // Calculate the rotation expressed by the joint's axis and secondary axis
             var right = joint.axis;
@@ -56,7 +56,7 @@ namespace Extension
             resultRotation *= worldToJointSpace;
 
             // Set target rotation to our newly calculated rotation
-            joint.targetRotation = resultRotation;
+            return resultRotation;
         }
     }
 }

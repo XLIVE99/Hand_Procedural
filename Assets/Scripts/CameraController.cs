@@ -37,6 +37,7 @@ namespace HandWar
         private Camera cam;
         private float raySphereRadius;
         private bool isZoom = false;
+        private bool isLocked = true;
 
         #region SINGLETON
         public static CameraController instance;
@@ -147,7 +148,8 @@ namespace HandWar
             direction = Quaternion.AngleAxis(inputX, Vector3.up) * Quaternion.AngleAxis(inputY, transform.right) * direction;
 
             //Clamp direction depend on Target (Method commented below), Local limit
-            direction = VectorExtensions.ClampAngleAxis(direction, -positionTrack.target.up, verticalLimit.x, verticalLimit.y);
+            if(isLocked)
+                direction = VectorExtensions.ClampAngleAxis(direction, -positionTrack.target.up, verticalLimit.x, verticalLimit.y);
 
             //Camera zoom in and out
             float currentDistance = 0f;
@@ -182,6 +184,11 @@ namespace HandWar
         public void ZoomOut()
         {
             isZoom = false;
+        }
+
+        public void SetLockedState(bool state)
+        {
+            isLocked = state;
         }
 
         //Offsetted track point calculation
