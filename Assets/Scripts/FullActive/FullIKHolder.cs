@@ -8,6 +8,8 @@ namespace HandWar.FullActive
         [SerializeField] private FullIKInfo[] infos;
         [SerializeField] private RigBuilder rigBuilder;
 
+        public int TotalIK => infos.Length;
+
         public void Start()
         {
             foreach (FullIKInfo info in infos)
@@ -24,15 +26,30 @@ namespace HandWar.FullActive
         }
 
         /// <summary>
-        /// Returns active fingers count
+        /// Returns active finger count
         /// </summary>
         /// <returns></returns>
-        public int GetActiveFingers()
+        public int GetAvailableIKsCount()
         {
             int i = 0;
             foreach(FullIKInfo info in infos)
             {
                 if (info.IsIKAvailable)
+                    i++;
+            }
+            return i;
+        }
+
+        /// <summary>
+        /// Returns grounded finger count
+        /// </summary>
+        /// <returns></returns>
+        public int GetGroundedIKCount()
+        {
+            int i = 0;
+            foreach (FullIKInfo info in infos)
+            {
+                if (info.IsIKAvailable && info.solver.onGround && !info.solver.rayOverriden) //Aiming finger means not on ground
                     i++;
             }
             return i;
@@ -172,7 +189,7 @@ namespace HandWar.FullActive
         }
 
         /// <summary>
-        /// Calculates center of mass, returns global point
+        /// Calculates center of mass of grounded fingers, returns global point
         /// </summary>
         /// <returns>Calculated center of mass</returns>
         public Vector3 CalculateGroundedCenterOfMass()
@@ -186,7 +203,7 @@ namespace HandWar.FullActive
             FullIKInfo p1 = null, p2 = null;
             for (int i = 0; i < infos.Length; i++)
             {
-                if (infos[i].IsIKAvailable && !infos[i].solver.rayOverriden)
+                if (infos[i].IsIKAvailable && infos[i].solver.onGround && !infos[i].solver.rayOverriden)
                 {
                     if (p1 == null)
                         p1 = infos[i];

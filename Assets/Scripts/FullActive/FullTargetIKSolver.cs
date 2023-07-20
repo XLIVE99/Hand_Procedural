@@ -11,6 +11,7 @@ namespace HandWar.FullActive
         [SerializeField] private Transform target;
         [SerializeField] private float moveDot = 1.5f;
         [SerializeField] private float targetMoveSpeed = 5f;
+        [SerializeField] private float stepAngle = 20f;
         [SerializeField, Tooltip("In degrees/s")] private float relocateSpeed = 25f; //If finger in air, rotate speed of second ray looking at finger tip
         [SerializeField, Tooltip("In degrees/s")] private float resetSpeed = 180f; //If second ray doesn't hit, rotate speed of returning to main ray rotation
         [SerializeField, Tooltip("In degrees/s")] private float stepReturnSpeed = 90f; //Step returning speed
@@ -22,7 +23,6 @@ namespace HandWar.FullActive
         //private Vector3 oldPos;
         public Vector3 worldPlacePoint { get; private set; }
         private Quaternion localOffset;
-        private float stepAngle;
 
         private Vector3 bodyUp;
         private float idealHeight;
@@ -39,7 +39,6 @@ namespace HandWar.FullActive
         private const float LENGTH_OFFSET = 0.5f; //Ray length offset
         private const float ROTATE_THRESHOLD = 10f; //Minimum correct angle to active bone tip
         private const float MAX_SECOND_ROTATION = 15f; //Maximum second ray rotation difference (In degrees)
-        private const float STEP_ANGLE = 10f; //RayPoint rotation amount while in input (In degrees)
 
 #if UNITY_EDITOR
         private void OnDrawGizmosSelected()
@@ -151,7 +150,7 @@ namespace HandWar.FullActive
                 SmoothSecondRotation(result);
 
                 if (axis.sqrMagnitude > 0.5f)
-                    rayPoint.rotation = transform.rotation * Quaternion.AngleAxis(STEP_ANGLE, -axis) * GetRayLocalRotation;
+                    rayPoint.rotation = transform.rotation * Quaternion.AngleAxis(stepAngle, -axis) * GetRayLocalRotation;
                 else
                     rayPoint.localRotation = GetRayLocalRotation;
             }
@@ -165,7 +164,7 @@ namespace HandWar.FullActive
                 SmoothSecondRotation(result);
 
                 if(angle > 2f)
-                    rayPoint.localRotation = GetRayLocalRotation * Quaternion.AngleAxis(STEP_ANGLE, -axis);
+                    rayPoint.localRotation = GetRayLocalRotation * Quaternion.AngleAxis(stepAngle, -axis);
             }
         }
 
@@ -177,7 +176,7 @@ namespace HandWar.FullActive
                 SmoothSecondRotation(result);
 
                 if (globalAxis.sqrMagnitude > 0.5f || localAngle > 5f)
-                    rayPoint.rotation = transform.rotation * Quaternion.AngleAxis(STEP_ANGLE, globalAxis) * GetRayLocalRotation * Quaternion.AngleAxis(STEP_ANGLE, localAxis);
+                    rayPoint.rotation = transform.rotation * Quaternion.AngleAxis(stepAngle, globalAxis) * GetRayLocalRotation * Quaternion.AngleAxis(stepAngle, localAxis);
                 else
                     rayPoint.localRotation = GetRayLocalRotation;
             }
@@ -291,8 +290,7 @@ namespace HandWar.FullActive
             }
             else
             {
-                stepAngle = Vector3.Angle(secondRayPoint.forward, rayPoint.forward);
-                if (stepAngle > 1f)
+                if (Vector3.Angle(secondRayPoint.forward, rayPoint.forward) > 1f)
                 {
                     StepUp();
                 }

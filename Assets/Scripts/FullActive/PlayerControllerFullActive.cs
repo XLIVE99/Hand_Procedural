@@ -114,7 +114,7 @@ namespace HandWar.FullActive
         private void Update()
         {
             //Get active finger count
-            activeFingers = fingers.GetActiveFingers();
+            activeFingers = fingers.GetAvailableIKsCount();
 
             //Get movement inputs
             Vector2 rawInput = playerInputAction.Player.Movement.ReadValue<Vector2>();
@@ -228,14 +228,12 @@ namespace HandWar.FullActive
             Vector3 offCenter = fingers.CalculateCenterOfMass();
             Vector3 goalCenter = fingers.CalculateGroundedCenterOfMass();
 
-            Debug.DrawRay(offCenter, Vector3.up + Vector3.forward, Color.black);
-            Debug.DrawRay(goalCenter, Vector3.up + Vector3.forward, Color.red);
-            Debug.Log("off: " + offCenter + "\ngoal: " + goalCenter);
             float magn = Vector3.Distance(goalCenter, offCenter);
             Vector3 forceDir = Vector3.Cross(offCenter - goalCenter, transform.right).normalized;
-            Debug.DrawRay(transform.position, forceDir, Color.green);
-            Debug.Log("magn: " + magn);
-            body.AddForceAtPosition(forceDir * magn * SELECTED_FINGER_HOVER, selectedAimFinger.GetActiveRoot.position);
+
+            float ratio = (float)fingers.GetGroundedIKCount()/fingers.TotalIK;
+
+            body.AddForceAtPosition(forceDir * magn * SELECTED_FINGER_HOVER * ratio, selectedAimFinger.GetActiveRoot.position);
         }
 
         /// <summary>
