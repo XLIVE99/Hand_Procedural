@@ -169,13 +169,13 @@ namespace BIK.FullActive
             {
                 if(p2 != null)
                 {
-                    Debug.Log("2 point normal");
+                    //Debug.Log("2 point normal");
                     //There is 2 points to calculate, then take middle point
                     centerOfMass = Vector3.Lerp(p2.TipProjectedOnRoot(), p1.TipProjectedOnRoot(), 0.5f);
                 }
                 else if(p1 != null) //This is a temporary solution
                 {
-                    Debug.Log("1 point normal");
+                    //Debug.Log("1 point normal");
                     //There is only 1 point to calculate
                     centerOfMass = p1.GetPassiveRoot.position;
                 }
@@ -231,13 +231,13 @@ namespace BIK.FullActive
             {
                 if (p2 != null)
                 {
-                    Debug.Log("2 point grounded");
+                    //Debug.Log("2 point grounded");
                     //There is 2 points to calculate, then take middle point
                     centerOfMass = Vector3.Lerp(p2.TipProjectedOnRoot(), p1.TipProjectedOnRoot(), 0.5f);
                 }
                 else if(p1 != null) //This is a temporary solution
                 {
-                    Debug.Log("1 point grounded");
+                    //Debug.Log("1 point grounded");
                     //There is only 1 point to calculate
                     centerOfMass = p1.GetPassiveRoot.position;
                 }

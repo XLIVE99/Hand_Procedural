@@ -128,8 +128,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   rayPoint: {fileID: 178804501126793574}
-  secondRayPoint: {fileID: 178804501479412830}
   rayLength: 2.89
+  rayRadius: 0.2
+  moveSpeed: 2
+  secondRayPoint: {fileID: 178804501479412830}
   target: {fileID: 178804501790406716}
   moveDot: 1.3
   targetMoveSpeed: 5
@@ -137,11 +139,10 @@ MonoBehaviour:
   relocateSpeed: 25
   resetSpeed: 180
   stepReturnSpeed: 270
-  rayRadius: 0.2
   ikInfo: {fileID: 178804500760490670}
   lowFriction: {fileID: 13400000, guid: 2dc7eab9998c62241a37299e5422f871, type: 2}
   highFriction: {fileID: 13400000, guid: 2534e11d057e6cb48a55520bd36dbb53, type: 2}
-  col: {fileID: 178804501349828008}
+  tipCollider: {fileID: 178804501349828008}
 --- !u!114 &178804500760490670
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -298,8 +299,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   rayPoint: {fileID: 178804501761010212}
-  secondRayPoint: {fileID: 178804501902672783}
   rayLength: 1.89
+  rayRadius: 0.2
+  moveSpeed: 2
+  secondRayPoint: {fileID: 178804501902672783}
   target: {fileID: 178804501297123245}
   moveDot: 1.25
   targetMoveSpeed: 5
@@ -307,11 +310,10 @@ MonoBehaviour:
   relocateSpeed: 25
   resetSpeed: 180
   stepReturnSpeed: 270
-  rayRadius: 0.2
   ikInfo: {fileID: 178804500764476996}
   lowFriction: {fileID: 13400000, guid: 2dc7eab9998c62241a37299e5422f871, type: 2}
   highFriction: {fileID: 13400000, guid: 2534e11d057e6cb48a55520bd36dbb53, type: 2}
-  col: {fileID: 178804500921728517}
+  tipCollider: {fileID: 178804500921728517}
 --- !u!114 &178804500764476996
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1171,8 +1173,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   rayPoint: {fileID: 178804501518833231}
-  secondRayPoint: {fileID: 178804502307270089}
   rayLength: 2.86
+  rayRadius: 0.2
+  moveSpeed: 2
+  secondRayPoint: {fileID: 178804502307270089}
   target: {fileID: 178804501416201073}
   moveDot: 1.3
   targetMoveSpeed: 5
@@ -1180,11 +1184,10 @@ MonoBehaviour:
   relocateSpeed: 25
   resetSpeed: 180
   stepReturnSpeed: 270
-  rayRadius: 0.2
   ikInfo: {fileID: 178804500888318771}
   lowFriction: {fileID: 13400000, guid: 2dc7eab9998c62241a37299e5422f871, type: 2}
   highFriction: {fileID: 13400000, guid: 2534e11d057e6cb48a55520bd36dbb53, type: 2}
-  col: {fileID: 178804501597114249}
+  tipCollider: {fileID: 178804501597114249}
 --- !u!114 &178804500888318771
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3695,8 +3698,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   rayPoint: {fileID: 178804502533277383}
-  secondRayPoint: {fileID: 178804500781537407}
   rayLength: 2.64
+  rayRadius: 0.2
+  moveSpeed: 2
+  secondRayPoint: {fileID: 178804500781537407}
   target: {fileID: 178804502876735006}
   moveDot: 1.3
   targetMoveSpeed: 5
@@ -3704,11 +3709,10 @@ MonoBehaviour:
   relocateSpeed: 25
   resetSpeed: 180
   stepReturnSpeed: 270
-  rayRadius: 0.2
   ikInfo: {fileID: 178804501731755521}
   lowFriction: {fileID: 13400000, guid: 2dc7eab9998c62241a37299e5422f871, type: 2}
   highFriction: {fileID: 13400000, guid: 2534e11d057e6cb48a55520bd36dbb53, type: 2}
-  col: {fileID: 178804501597114254}
+  tipCollider: {fileID: 178804501597114254}
 --- !u!114 &178804501731755521
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4124,8 +4128,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   rayPoint: {fileID: 178804501273064445}
-  secondRayPoint: {fileID: 178804501894107316}
   rayLength: 1.71
+  rayRadius: 0.2
+  moveSpeed: 2
+  secondRayPoint: {fileID: 178804501894107316}
   target: {fileID: 178804501958842396}
   moveDot: 1.4
   targetMoveSpeed: 5
@@ -4133,11 +4139,10 @@ MonoBehaviour:
   relocateSpeed: 25
   resetSpeed: 180
   stepReturnSpeed: 270
-  rayRadius: 0.2
   ikInfo: {fileID: 178804501853345636}
   lowFriction: {fileID: 13400000, guid: 2dc7eab9998c62241a37299e5422f871, type: 2}
   highFriction: {fileID: 13400000, guid: 2534e11d057e6cb48a55520bd36dbb53, type: 2}
-  col: {fileID: 178804501597114248}
+  tipCollider: {fileID: 178804501597114248}
 --- !u!114 &178804501853345636
 MonoBehaviour:
   m_ObjectHideFlags: 0

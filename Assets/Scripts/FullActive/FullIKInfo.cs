@@ -117,6 +117,7 @@ namespace BIK.FullActive
             selectedSegment.GetComponent<CollisionDetector>().enabled = false;
             selectedPassive.gameObject.SetActive(false);
             solver.ChangeRayLength(GetLength(false));
+            solver.ChangeTipCollider(selectedSegment.parent.GetComponent<Collider>());
 
             ChainIKConstraint chainIK = solver.GetComponent<ChainIKConstraint>();
             if(selectedPassive.parent != chainIK.data.root)

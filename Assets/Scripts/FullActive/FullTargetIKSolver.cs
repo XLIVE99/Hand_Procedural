@@ -18,7 +18,8 @@ namespace BIK.FullActive
         [SerializeField, Tooltip("In degrees/s")] private float stepReturnSpeed = 90f; //Step returning speed
         [SerializeField] private FullIKInfo ikInfo; //Developer Note: Find a way to discard this variable, depending on this class makes me uneasy
         [SerializeField] private PhysicMaterial lowFriction, highFriction; //Friction materials used in stepping
-        [SerializeField] private Collider col; //Collider which material will change while stepping
+        [SerializeField] private Collider tipCollider; //Collider which material will change while stepping
+        private float tipMass;
 
         private Quaternion localOffset; //Raypoint rotation offset, used to overshoot second ray rotation while resetting second ray
 
@@ -71,6 +72,14 @@ namespace BIK.FullActive
         }
 #endif
 
+        private void Awake()
+        {
+            if (tipCollider.TryGetComponent(out Rigidbody body))
+                tipMass = body.mass;
+            else
+                Debug.LogWarning("tip collider (" + tipCollider.name + ") doesn't have any Rigidbody. This may cause stutter in movement", tipCollider);
+        }
+
         private void Start()
         {
             worldPlacePoint = target.position;
@@ -84,6 +93,27 @@ namespace BIK.FullActive
         private void FixedUpdate()
         {
             CheckPos(Time.fixedDeltaTime);
+        }
+
+        /// <summary>
+        /// Change active tip collider
+        /// </summary>
+        /// <param name="col">collider</param>
+        public void ChangeTipCollider(Collider col)
+        {
+            if(col == null)
+            {
+                Debug.LogWarning("Tip collider setted to null. This solver will set itself as disabled", this);
+                enabled = false;
+                tipCollider = null;
+                return;
+            }
+
+            tipCollider = col;
+            if (tipCollider.TryGetComponent(out Rigidbody body))
+                tipMass = body.mass;
+            else
+                Debug.LogWarning("tip collider (" + tipCollider.name + ") doesn't have any Rigidbody. This may cause stutter in movement", tipCollider);
         }
 
         /// <summary>
@@ -246,8 +276,8 @@ namespace BIK.FullActive
         private void StepUp()
         {
             isMoving = true;
-            col.material = lowFriction;
-            col.GetComponent<Rigidbody>().mass = 0.6f; //This shouldn't be hard coded
+            tipCollider.material = lowFriction;
+            tipCollider.GetComponent<Rigidbody>().mass = tipMass * 0.2f;
 
             CalculateActiveLookRotation(secondRayPoint, out Vector3 forw, out Vector3 up);
             secondRayPoint.rotation = Quaternion.LookRotation(forw, up);
@@ -262,8 +292,8 @@ namespace BIK.FullActive
         private void StepCompleted()
         {
             isMoving = false;
-            col.material = highFriction;
-            col.GetComponent<Rigidbody>().mass = 3f; //This shouldn't be hard coded
+            tipCollider.material = highFriction;
+            tipCollider.GetComponent<Rigidbody>().mass = tipMass;
         }
 
         /// <summary>
