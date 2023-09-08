@@ -56,4 +56,8 @@ Setting Kinematic object:
 - Currently, full-active hand can fall while aiming. I tried to calculate shifted center of mass and move fingers according to that center of mass but failed. I am open for solution to this problem.
 
 ## Known Issues
-- Full-active IK solver script is way complicated to understand. Feel free to open issues or mail me if you have any questions. I am planning to simplify it when I am free.
+- Full-active IK solver script is way complicated to understand. Feel free to open issues if you have any questions. I am planning to simplify it when I am free.
+
+## Credits
+- [Simple toon shader](https://assetstore.unity.com/packages/vfx/shaders/urp-simple-toon-shader-243515)
+- I took the hand model somwhere and modified it a bit but I am unable to find where I took the hand model. If you know the hand model, please open issue.
