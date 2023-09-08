@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.Animations.Rigging;
 
-namespace HandWar.FullActive
+namespace BIK.FullActive
 {
     public class FullIKHolder : MonoBehaviour
     {
@@ -291,7 +291,7 @@ namespace HandWar.FullActive
             Vector3 normal = Vector3.zero;
             foreach (FullIKInfo info in infos)
             {
-                normal += info.CalculateNormal((point - info.GetPassiveRoot.position) * info.solver.GetRawLength());
+                normal += info.CalculateNormal((point - info.GetPassiveRoot.position) * info.solver.RayLength);
             }
 
             return normal;
@@ -337,7 +337,7 @@ namespace HandWar.FullActive
             bool onGround = false;
             foreach (FullIKInfo info in infos)
             {
-                if (info.solver.onGround && Vector3.Distance(info.solver.worldPlacePoint, info.GetActiveRoot.position) <= info.solver.GetRawLength())
+                if (info.solver.onGround && Vector3.Distance(info.solver.worldPlacePoint, info.GetActiveRoot.position) <= info.solver.RayLength)
                 {
                     onGround = true;
                     break;

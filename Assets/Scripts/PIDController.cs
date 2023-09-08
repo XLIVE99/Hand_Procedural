@@ -1,7 +1,10 @@
 using UnityEngine;
 
-namespace HandWar
+namespace BIK
 {
+    /// <summary>
+    /// PID controller, can calculate float (normal and angle), vector and quaternion
+    /// </summary>
     public class PIDController : MonoBehaviour
     {
         [SerializeField] private float proportionalGain; //Spring
@@ -18,6 +21,24 @@ namespace HandWar
             ErrorRateOfChange
         }
         [SerializeField] private DerivativeMeasurement derivativeMeasurement;
+
+        //Holds all global variables of PIDController.cs
+        //PIDController can calculate multiple object's PID with this implementation
+        [System.Serializable]
+        public class PIDStore<T>
+        {
+            public T integrationStored;
+
+            public T errorLast;
+            public T valueLast;
+
+            public bool derivativeInitialized;
+
+            public void ResetPID()
+            {
+                derivativeInitialized = false;
+            }
+        }
 
         public float UpdatePID(float dt, float current, float goal, PIDStore<float> store)
         {

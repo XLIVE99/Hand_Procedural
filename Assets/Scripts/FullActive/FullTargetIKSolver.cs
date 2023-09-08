@@ -1,40 +1,38 @@
 using UnityEngine;
 
-namespace HandWar.FullActive
+namespace BIK.FullActive
 {
+    /// <summary>
+    /// IK solver for stepping algorithm
+    /// </summary>
     public class FullTargetIKSolver : IKSolverBase
     {
-        //NEEDS REWORKS
-        [SerializeField] private Transform rayPoint;
-        [SerializeField] private Transform secondRayPoint;
-        [SerializeField] private float rayLength = 3f;
-        [SerializeField] private Transform target;
-        [SerializeField] private float moveDot = 1.5f;
-        [SerializeField] private float targetMoveSpeed = 5f;
-        [SerializeField] private float stepAngle = 20f;
+        //NEEDS REWORK, TOO COMPLICATED
+        [SerializeField] private Transform secondRayPoint; //Rotating ray point to grasp ground
+        [SerializeField] private Transform target; //IK target
+        [SerializeField] private float moveDot = 1.5f; //Step dot condition. If added dot value bigger than this, step
+        [SerializeField] private float targetMoveSpeed = 5f; //IK target move speed
+        [SerializeField] private float stepAngle = 20f; //Maximum step angle offset
         [SerializeField, Tooltip("In degrees/s")] private float relocateSpeed = 25f; //If finger in air, rotate speed of second ray looking at finger tip
         [SerializeField, Tooltip("In degrees/s")] private float resetSpeed = 180f; //If second ray doesn't hit, rotate speed of returning to main ray rotation
         [SerializeField, Tooltip("In degrees/s")] private float stepReturnSpeed = 90f; //Step returning speed
-        [SerializeField] private float rayRadius = 0.2f;
         [SerializeField] private FullIKInfo ikInfo; //Developer Note: Find a way to discard this variable, depending on this class makes me uneasy
-        [SerializeField] private PhysicMaterial lowFriction, highFriction;
-        [SerializeField] private Collider col;
+        [SerializeField] private PhysicMaterial lowFriction, highFriction; //Friction materials used in stepping
+        [SerializeField] private Collider col; //Collider which material will change while stepping
 
-        //private Vector3 oldPos;
-        public Vector3 worldPlacePoint { get; private set; }
-        private Quaternion localOffset;
+        private Quaternion localOffset; //Raypoint rotation offset, used to overshoot second ray rotation while resetting second ray
 
-        private Vector3 bodyUp;
-        private float idealHeight;
+        private Vector3 bodyUp; //Whole body up vector, used to calculate idealHeight
+        private float idealHeight; //Ideal height to stand the body up
 
-        private Quaternion rayLocalRot;
-        private Quaternion rayLocalRotOffset;
-        private Quaternion GetRayLocalRotation => rayLocalRot * rayLocalRotOffset;
+        private Quaternion rayLocalRot; //Raypoint local rotation
+        private Quaternion rayLocalRotOffset; //Raypoint local rotation additional offset
+        private Quaternion GetRayLocalRotation => rayLocalRot * rayLocalRotOffset; //Calculated raypoint local rotation
 
-        public bool rayOverriden { get; private set; } = false;
+        public bool rayOverriden { get; private set; } = false; //Is ray direction overrided
 
-        public Vector3 rayDir { get; private set; }
-        public Vector3 hitNormal { get; private set; }
+        public Vector3 rayDir { get; private set; } //Overrided ray direction
+        public Vector3 hitNormal { get; private set; } //Raycast hit surface normal
 
         private const float LENGTH_OFFSET = 0.5f; //Ray length offset
         private const float ROTATE_THRESHOLD = 10f; //Minimum correct angle to active bone tip
@@ -50,6 +48,9 @@ namespace HandWar.FullActive
             Gizmos.DrawLine(secondRayPoint.position, secondRayPoint.position + secondRayPoint.forward * rayLength);
         }
 
+        /// <summary>
+        /// Enable ik root object
+        /// </summary>
         [ContextMenu("Enable roots")]
         private void EnableRoots()
         {
@@ -58,6 +59,9 @@ namespace HandWar.FullActive
             enabled = true;
         }
 
+        /// <summary>
+        /// Disable ik root object
+        /// </summary>
         [ContextMenu("Disable roots")]
         private void DisableRoots()
         {
@@ -70,7 +74,7 @@ namespace HandWar.FullActive
         private void Start()
         {
             worldPlacePoint = target.position;
-            CheckPos(Time.deltaTime, true);
+            CheckPos(Time.deltaTime);
             rayLocalRot = rayPoint.localRotation;
             secondRayPoint.rotation = rayPoint.rotation;
             localOffset = Quaternion.identity;
@@ -82,16 +86,29 @@ namespace HandWar.FullActive
             CheckPos(Time.fixedDeltaTime);
         }
 
+        /// <summary>
+        /// Set body up vector
+        /// </summary>
+        /// <param name="upDir">up vector</param>
         public void SetBodyUp(Vector3 upDir)
         {
             bodyUp = upDir;
         }
 
+        /// <summary>
+        /// Set ideal height
+        /// </summary>
+        /// <param name="idealH"></param>
         public void SetIdealHeight(float idealH)
         {
             idealHeight = idealH;
         }
 
+        /// <summary>
+        /// Calculates additional small offset for raypoint local rotation
+        /// </summary>
+        /// <param name="worldPlace"></param>
+        /// <param name="bodyUp"></param>
         public void CalculateRayLocalOffset(Vector3 worldPlace, Vector3 bodyUp)
         {
             Vector3 diff = rayPoint.position - worldPlace;
@@ -101,6 +118,10 @@ namespace HandWar.FullActive
             Debug.DrawRay(rayPoint.position, transform.rotation * rayLocalRotOffset * Vector3.up, Color.green);
         }
 
+        /// <summary>
+        /// Overrides ray direction
+        /// </summary>
+        /// <param name="dir"></param>
         public void OverrideRayDirection(Vector3 dir)
         {
             rayDir = dir;
@@ -109,25 +130,13 @@ namespace HandWar.FullActive
                 rayOverriden = true;
         }
 
+        /// <summary>
+        /// Stops ray override
+        /// </summary>
         public void ResetRayDirection()
         {
             if (rayOverriden)
                 rayOverriden = false;
-        }
-
-        public void ChangeRayLength(float length)
-        {
-            //rayLength = Mathf.Max(length + rayPoint.localPosition.y - 0.7f, 0f);
-            rayLength = length + LENGTH_OFFSET; //a little offset
-
-            //Prevent unnecessary calculation to gain performance
-            if (length > 0.1f != enabled)
-                enabled = length > 0.1f;
-        }
-
-        public float GetRawLength()
-        {
-            return Mathf.Max(rayLength - LENGTH_OFFSET, 0f);
         }
 
         // Called from CollisionDetector.cs
@@ -142,6 +151,11 @@ namespace HandWar.FullActive
             onGround = false;
         }
 
+        /// <summary>
+        /// Rotates second ray on global axis
+        /// </summary>
+        /// <param name="angle">Rotate angle</param>
+        /// <param name="axis">Rotate global axis</param>
         public void RotateSecondRayGlobal(float angle, Vector3 axis)
         {
             if (!isMoving && onGround && !rayOverriden)
@@ -156,6 +170,11 @@ namespace HandWar.FullActive
             }
         }
 
+        /// <summary>
+        /// Rotates second ray on local axis
+        /// </summary>
+        /// <param name="angle">Rotate angle</param>
+        /// <param name="axis">Rotate local axis</param>
         public void RotateSecondaryRayLocal(float angle, Vector3 axis)
         {
             if (!isMoving && onGround && !rayOverriden)
@@ -168,6 +187,13 @@ namespace HandWar.FullActive
             }
         }
 
+        /// <summary>
+        /// Rotate second ray local or global (Combined version of global rotate and local rotate)
+        /// </summary>
+        /// <param name="globalAngle">Global rotate angle</param>
+        /// <param name="globalAxis">Global rotate axis</param>
+        /// <param name="localAngle">Local rotate angle</param>
+        /// <param name="localAxis">Local rotate axis</param>
         public void RotateRays(float globalAngle, Vector3 globalAxis, float localAngle, Vector3 localAxis)
         {
             if(!isMoving && onGround && !rayOverriden)
@@ -182,6 +208,10 @@ namespace HandWar.FullActive
             }
         }
 
+        /// <summary>
+        /// Smooth second ray rotation and clamp rotation
+        /// </summary>
+        /// <param name="finalRot">Desired rotation</param>
         private void SmoothSecondRotation(Quaternion finalRot)
         {
             CalculateActiveLookRotation(secondRayPoint, out Vector3 secondForward, out Vector3 secondUp);
@@ -190,7 +220,11 @@ namespace HandWar.FullActive
             secondRayPoint.rotation = Quaternion.RotateTowards(threshold, finalRot, MAX_SECOND_ROTATION);
         }
 
-        private void CheckPos(float delta, bool force = false)
+        /// <summary>
+        /// Checks IK target position
+        /// </summary>
+        /// <param name="delta">Delta time</param>
+        private void CheckPos(float delta)
         {
             if (isMoving)
             {
@@ -206,11 +240,14 @@ namespace HandWar.FullActive
             }
         }
 
+        /// <summary>
+        /// Get ready everything for step up
+        /// </summary>
         private void StepUp()
         {
             isMoving = true;
             col.material = lowFriction;
-            col.GetComponent<Rigidbody>().mass = 0.6f;
+            col.GetComponent<Rigidbody>().mass = 0.6f; //This shouldn't be hard coded
 
             CalculateActiveLookRotation(secondRayPoint, out Vector3 forw, out Vector3 up);
             secondRayPoint.rotation = Quaternion.LookRotation(forw, up);
@@ -219,13 +256,21 @@ namespace HandWar.FullActive
             localOffset = Quaternion.Inverse(transform.rotation * GetRayLocalRotation) * rayPoint.rotation;
         }
 
+        /// <summary>
+        /// Set everything when step completed
+        /// </summary>
         private void StepCompleted()
         {
             isMoving = false;
             col.material = highFriction;
-            col.GetComponent<Rigidbody>().mass = 3f;
+            col.GetComponent<Rigidbody>().mass = 3f; //This shouldn't be hard coded
         }
 
+        /// <summary>
+        /// Step algorithm (ground)
+        /// </summary>
+        /// <param name="delta">Delta time</param>
+        /// <returns>Final IK step position</returns>
         private Vector3 RayPlacePoint(float delta)
         {
             Vector3 result = Vector3.zero;
@@ -301,6 +346,11 @@ namespace HandWar.FullActive
             return result;
         }
 
+        /// <summary>
+        /// Stepping algorithm (air)
+        /// </summary>
+        /// <param name="delta">Delta time</param>
+        /// <returns></returns>
         private Vector3 RaycastStep(float delta)
         {
             Vector3 result = Vector3.zero;
@@ -330,6 +380,12 @@ namespace HandWar.FullActive
             return result;
         }
 
+        /// <summary>
+        /// Calculates forward and up vector which looks at active IK tip point
+        /// </summary>
+        /// <param name="rayP">Ray point</param>
+        /// <param name="forward">Forward vector</param>
+        /// <param name="up">Up vector</param>
         private void CalculateActiveLookRotation(Transform rayP, out Vector3 forward, out Vector3 up)
         {
             Vector3 diffToTip = ikInfo.GetActiveTip.position - rayP.position;

@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace HandWar
+namespace BIK
 {
     [RequireComponent(typeof(LineRenderer))]
     public class StickyLineTracker : MonoBehaviour

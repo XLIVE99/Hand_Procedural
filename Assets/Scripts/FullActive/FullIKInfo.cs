@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.Animations.Rigging;
 using Extension;
 
-namespace HandWar.FullActive
+namespace BIK.FullActive
 {
     public class FullIKInfo : MonoBehaviour
     {
@@ -153,7 +153,7 @@ namespace HandWar.FullActive
 
             //First calculate finger max distance (Law of sines)
             float maxExtentUp = 0;
-            if (currentDist <= solver.GetRawLength())
+            if (currentDist <= solver.RayLength)
             {
                 float angleB = Vector3.Angle(-diffRoot, upDir);
                 if (Mathf.Approximately(angleB, 180f) || Mathf.Approximately(angleB, 0f))
@@ -161,7 +161,7 @@ namespace HandWar.FullActive
                     //If B equals to 180 degree then up direction and subToLast vectors are in same direction
                     //Just take extent
                     if (angleB > 90f)
-                        maxExtentUp = solver.GetRawLength() - currentDist;
+                        maxExtentUp = solver.RayLength - currentDist;
                     //If B equals to 0 degree then up direction and subToLast vectors are in opposite direction
                     //Reverse the extent
                     else
@@ -172,13 +172,13 @@ namespace HandWar.FullActive
                     //Since we know two sides and one angle of triangle, we can calculate rest of it with law of sine
                     //One side is 'currentDist' other side is maximum extent of finger
                     //With this calculation we can calculate how far away we can move on 'upDir' direction
-                    float angleC = Mathf.Asin((currentDist * Mathf.Sin(angleB * Mathf.Deg2Rad)) / solver.GetRawLength()) * Mathf.Rad2Deg;
+                    float angleC = Mathf.Asin((currentDist * Mathf.Sin(angleB * Mathf.Deg2Rad)) / solver.RayLength) * Mathf.Rad2Deg;
                     float angleA = 180f - angleB - angleC;
-                    maxExtentUp = (solver.GetRawLength() * Mathf.Sin(angleA * Mathf.Deg2Rad)) / Mathf.Sin(angleB * Mathf.Deg2Rad);
+                    maxExtentUp = (solver.RayLength * Mathf.Sin(angleA * Mathf.Deg2Rad)) / Mathf.Sin(angleB * Mathf.Deg2Rad);
                 }
             }
 
-            return Mathf.Min(maxExtentUp, solver.GetRawLength() - currentDist);
+            return Mathf.Min(maxExtentUp, solver.RayLength - currentDist);
         }
 
         public Vector3 CalculateNormal(Vector3 cSide)
@@ -188,7 +188,7 @@ namespace HandWar.FullActive
             //|AB| = a, |AC| = c, |BC| = b
 
             //Angle of 'C'. We will take 'a' side as maximum extent of the finger
-            float deg = Mathf.Asin(solver.GetRawLength() / cSide.magnitude) * Mathf.Rad2Deg;
+            float deg = Mathf.Asin(solver.RayLength / cSide.magnitude) * Mathf.Rad2Deg;
 
             //Surface normal of the rayHit (also 'a' side)
             Vector3 surfaceNormal = solver.hitNormal;

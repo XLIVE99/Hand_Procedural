@@ -1,8 +1,11 @@
 using UnityEngine;
 using UnityEngine.Events;
 
-namespace HandWar
+namespace BIK
 {
+    /// <summary>
+    /// Sends collision messages as unity events, that way objects which doesn't have a rigidbody component can notified by collision events
+    /// </summary>
     public class CollisionDetector : MonoBehaviour
     {
         public bool isEnabled = false;

@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using Extension;
 
-namespace HandWar.SemiActive
+namespace BIK.SemiActive
 {
     [RequireComponent(typeof(Rigidbody))]
     public class PlayerControllerSemiActive : MonoBehaviour
@@ -39,8 +39,8 @@ namespace HandWar.SemiActive
         private PlayerInputAction playerInputAction;
 
         //PID values
-        private PIDStore<Vector3> pidStoreMove;
-        private PIDStore<Vector3> pidStoreTorque;
+        private PIDController.PIDStore<Vector3> pidStoreMove;
+        private PIDController.PIDStore<Vector3> pidStoreTorque;
 
         //Input value converted to Vector3
         private Vector3 inputVector;
@@ -95,8 +95,8 @@ namespace HandWar.SemiActive
         private void Awake()
         {
             //Create new PID store class for PID calculations
-            pidStoreMove = new PIDStore<Vector3>();
-            pidStoreTorque = new PIDStore<Vector3>();
+            pidStoreMove = new PIDController.PIDStore<Vector3>();
+            pidStoreTorque = new PIDController.PIDStore<Vector3>();
 
             //Set all components
             body = GetComponent<Rigidbody>();

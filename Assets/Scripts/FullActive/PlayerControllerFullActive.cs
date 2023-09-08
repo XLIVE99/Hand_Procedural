@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using Extension;
 
-namespace HandWar.FullActive
+namespace BIK.FullActive
 {
     [RequireComponent(typeof(Rigidbody))]
     public class PlayerControllerFullActive : MonoBehaviour

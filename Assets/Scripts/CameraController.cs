@@ -1,7 +1,7 @@
 using UnityEngine;
 using Extension;
 
-namespace HandWar
+namespace BIK
 {
     //Simple third person camera controller
     [RequireComponent(typeof(Camera))]

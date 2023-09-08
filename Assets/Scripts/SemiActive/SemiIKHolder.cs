@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.Animations.Rigging;
 
-namespace HandWar.SemiActive
+namespace BIK.SemiActive
 {
     public class SemiIKHolder : MonoBehaviour
     {
@@ -104,7 +104,7 @@ namespace HandWar.SemiActive
             Vector3 normal = Vector3.zero;
             foreach (SemiIKInfo info in infos)
             {
-                normal += info.CalculateNormal((point - info.root.position) * info.solver.GetRawLength());
+                normal += info.CalculateNormal((point - info.root.position) * info.solver.RayLength);
             }
 
             return normal;
@@ -115,7 +115,7 @@ namespace HandWar.SemiActive
             Vector3 normal = Vector3.zero;
             foreach (SemiIKInfo info in infos)
             {
-                normal += info.basicNormal();
+                normal += info.BasicNormal();
             }
 
             return normal;
@@ -161,7 +161,7 @@ namespace HandWar.SemiActive
             bool onGround = false;
             foreach (SemiIKInfo info in infos)
             {
-                if (info.solver.onGround && Vector3.Distance(info.solver.worldPlacePoint, info.rootActive.position) <= info.solver.GetRawLength())
+                if (info.solver.onGround && Vector3.Distance(info.solver.worldPlacePoint, info.rootActive.position) <= info.solver.RayLength)
                 {
                     onGround = true;
                     break;

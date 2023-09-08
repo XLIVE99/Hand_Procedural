@@ -1,28 +1,26 @@
 using UnityEngine;
 
-namespace HandWar.SemiActive
+namespace BIK.SemiActive
 {
+    /// <summary>
+    /// IK solver for stepping algorithm
+    /// </summary>
     public class SemiTargetIKSolver : IKSolverBase
     {
-        [SerializeField] private Transform rayPoint;
-        [SerializeField] private float rayLength = 3f;
-        [SerializeField] private Transform target;
-        [SerializeField] private float moveDistance;
-        [SerializeField] private float moveSpeed = 2f;
-        [SerializeField] private float rayRadius = 0.2f;
+        [SerializeField] private Transform target; //IK target
+        [SerializeField] private float moveDistance; //Stepping distance
 
-        private Vector3 oldPos;
-        public Vector3 worldPlacePoint { get; private set; }
-        private float lerp;
+        private Vector3 oldPos; //Old world position
+        private float lerp; //Lerp value, used in stepping
 
-        private bool rayOverriden = false;
+        private bool rayOverriden = false; //Is ray direction overrided
 
-        public Vector3 rayDir { get; private set; }
-        public Vector3 hitNormal { get; private set; }
+        public Vector3 rayDir { get; private set; } //Overrided ray direction
+        public Vector3 hitNormal { get; private set; } //Ray hit surface normal
 
-        private const float MOVE_UP_LENGTH = 0.4f;
-        private const float IDLE_DIST = 0.7f;
-        private const float LENGTH_OFFSET = 0f;
+        private const float MOVE_UP_LENGTH = 0.4f; //Move up length while stepping
+        private const float IDLE_DIST = 0.7f; //Default distance IK must maintain
+        private const float LENGTH_OFFSET = 0f; //IK target offset added to the rayLength
 
 #if UNITY_EDITOR
         private void OnDrawGizmos()
@@ -48,6 +46,10 @@ namespace HandWar.SemiActive
             CheckPos();
         }
 
+        /// <summary>
+        /// Use dir as rayDirection insted of -rayPoint.up
+        /// </summary>
+        /// <param name="dir">Global direction of ray</param>
         public void OverrideRayDirection(Vector3 dir)
         {
             rayDir = dir;
@@ -56,27 +58,19 @@ namespace HandWar.SemiActive
                 rayOverriden = true;
         }
 
+        /// <summary>
+        /// Disable ray override
+        /// </summary>
         public void ResetRayDirection()
         {
             if (rayOverriden)
                 rayOverriden = false;
         }
 
-        public void ChangeRayLength(float length)
-        {
-            //rayLength = Mathf.Max(length + rayPoint.localPosition.y - 0.7f, 0f);
-            rayLength = length + LENGTH_OFFSET; //a little offset
-
-            //Prevent unnecessary calculation to gain performance
-            if (length > 0.1f != enabled)
-                enabled = length > 0.1f;
-        }
-
-        public float GetRawLength()
-        {
-            return Mathf.Max(rayLength - LENGTH_OFFSET, 0f);
-        }
-
+        /// <summary>
+        /// Checks if we need to step or not
+        /// </summary>
+        /// <param name="force">Forces step no matter what</param>
         private void CheckPos(bool force = false)
         {
             Vector3 rayDirection = -rayPoint.up;
@@ -87,18 +81,20 @@ namespace HandWar.SemiActive
                 idleMultiplier = 1f;
             }
 
+            float offsetRayLength = rayLength + LENGTH_OFFSET;
+
             RaycastHit hitInfo;
-            if (Physics.SphereCast(rayPoint.position, rayRadius, rayDirection, out hitInfo, rayLength, LayerMask.GetMask("Terrain"))
+            if (Physics.SphereCast(rayPoint.position, rayRadius, rayDirection, out hitInfo, offsetRayLength, LayerMask.GetMask("Terrain"))
                 && Vector3.Dot(transform.right, hitInfo.normal) >= 0.7f) //Cos(45 degrees)
             {
                 hitNormal = hitInfo.normal;
                 if (force || Vector3.Distance(worldPlacePoint, hitInfo.point) >= moveDistance)
                 {
-                    ReplaceWorldPlace(hitInfo.point);
+                    StepTo(hitInfo.point);
                 }
                 else if (isMoving || !onGround)
                 {
-                    worldPlacePoint = hitInfo.point;
+                    worldPlacePoint = hitInfo.point; //Update world place point if we are still stepping or we are on air
                 }
                 //else
                 //    worldPlacePoint = hitInfo.point;
@@ -106,16 +102,20 @@ namespace HandWar.SemiActive
             }
             else if (onGround)
             {
-                ReplaceWorldPlace(rayPoint.position + rayDirection * rayLength * idleMultiplier);
+                StepTo(rayPoint.position + rayDirection * offsetRayLength * idleMultiplier);
                 onGround = false;
             }
             else
             {
-                worldPlacePoint = rayPoint.position + rayDirection * rayLength * idleMultiplier;
+                worldPlacePoint = rayPoint.position + rayDirection * offsetRayLength * idleMultiplier;
             }
             Debug.DrawLine(rayPoint.position, worldPlacePoint, Color.green);
         }
 
+        /// <summary>
+        /// Place IK target to the worldPos
+        /// </summary>
+        /// <param name="worldPos">Target goal world position</param>
         private void PlaceTarget(Vector3 worldPos)
         {
             target.position = Vector3.Lerp(oldPos, worldPos, lerp) + hitNormal * MOVE_UP_LENGTH * Mathf.Sin(lerp * Mathf.PI);
@@ -131,7 +131,11 @@ namespace HandWar.SemiActive
             }
         }
 
-        private void ReplaceWorldPlace(Vector3 p)
+        /// <summary>
+        /// Begins stepping to p world position
+        /// </summary>
+        /// <param name="p">World position</param>
+        private void StepTo(Vector3 p)
         {
             oldPos = worldPlacePoint;
             worldPlacePoint = p;

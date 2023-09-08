@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace HandWar
+namespace BIK
 {
     public static class QuaternionExtensions
     {
