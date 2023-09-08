@@ -56,4 +56,4 @@ Setting Kinematic object:
 - Currently, full-active hand can fall while aiming. I tried to calculate shifted center of mass and move fingers according to that center of mass but failed. I am open for solution to this problem.
 
 ## Known Issues
-- Full-active IK solver script is way complicated to understand. Feel free to open issues or mail me if you have any questions.
+- Full-active IK solver script is way complicated to understand. Feel free to open issues or mail me if you have any questions. I am planning to simplify it when I am free.
