@@ -6,7 +6,7 @@ Movement: WASD<br>
 Aim: Mouse<br>
 Focus: Mouse Right Button<br>
 Fire: Mouse Left Button<br>
-C: Lock/Release cursor<br>
+Lock/Release cursor: C<br>
 Zoom in/out: Mouse Scroll
 
 ## Semi-active Hand
@@ -60,4 +60,4 @@ Setting Kinematic object:
 
 ## Credits
 - [Simple toon shader](https://assetstore.unity.com/packages/vfx/shaders/urp-simple-toon-shader-243515)
-- I took the hand model somwhere and modified it a bit but I am unable to find where I took the hand model. If you know the hand model, please open issue.
+- I took the hand model somewhere and modified it a bit but I am unable to find where I took the hand model. If you know the hand model, please open issue.
